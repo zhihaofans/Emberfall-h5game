@@ -4,9 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#14100c">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
+<meta name="description" content="末日废土文字生存点击游戏：采集、制作、探索、战斗、附魔，纯本地存档，可离线游玩。">
+<!-- PWA：可安装 + 独立窗口 + 离线（v2.0.0） -->
+<link rel="manifest" href="./manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="末日余烬">
+<meta name="application-name" content="末日余烬">
+<meta name="format-detection" content="telephone=no">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon-180.png">
+<!-- iOS 启动图（游戏为深色主题，统一用深色版） -->
+<link rel="apple-touch-startup-image" href="./splash/splash-iphone13-1170x2532.png" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3)">
+<link rel="apple-touch-startup-image" href="./splash/splash-iphone15pro-1179x2556.png" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3)">
+<link rel="apple-touch-startup-image" href="./splash/splash-iphone15promax-1290x2796.png" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3)">
+<link rel="apple-touch-startup-image" href="./splash/splash-iphonex-1125x2436.png" media="(device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3)">
+<link rel="apple-touch-startup-image" href="./splash/splash-iphoneSE-750x1334.png" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2)">
+<link rel="apple-touch-startup-image" href="./splash/splash-ipad12-2048x2732.png" media="(device-width:1024px) and (device-height:1366px) and (-webkit-device-pixel-ratio:2)">
 <title>末日余烬 · 文字生存</title>
 <style>
 :root{
@@ -285,6 +301,20 @@ textarea#exportArea{
 #scanner .tip{
   position:absolute;top:calc(16px + env(safe-area-inset-top));left:0;right:0;text-align:center;
   color:#ddd;font-size:13px;z-index:5;
+}
+/* ============ PWA 提示条（安装 / 更新 / 离线，v2.0.0） ============ */
+#pwaBanner{
+  position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));
+  z-index:99998;display:none;text-align:center;cursor:pointer;
+  background:linear-gradient(180deg,#e8913a,#c25e25);color:#1a1108;
+  font-size:13px;font-weight:700;line-height:1.35;
+  padding:11px 14px;border-radius:11px;
+  box-shadow:0 8px 24px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.25);
+  animation:pwaIn .28s cubic-bezier(.2,.9,.3,1.2);
+}
+@keyframes pwaIn{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+#pwaBanner .pwa-x{
+  display:inline-block;margin-left:10px;padding:0 4px;opacity:.6;font-size:15px;
 }
 </style>
 </head>
@@ -2650,9 +2680,9 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
    ============================================================ */
 
 /* ---------------- 常量与数据 ---------------- */
-const GAME_VERSION = '1.30.2';   // 游戏版本号（语义化版本 SemVer：主版本.次版本.修订号）
+const GAME_VERSION = '2.0.0';   // 游戏版本号（语义化版本 SemVer：主版本.次版本.修订号）
 const AUTHOR = 'zhihaofans';    // 作者名
-const BUILD_CODE = 101;          // 构建号（每次发布 +1，用于版本追溯）
+const BUILD_CODE = 102;          // 构建号（每次发布 +1，用于版本追溯）
 // 暴露给 window（让调试/测试/控制台能直接访问；const 顶层声明不挂到 window）
 window.GAME_VERSION = GAME_VERSION;
 window.BUILD_CODE = BUILD_CODE;
@@ -2671,6 +2701,14 @@ const VERSION_RULES = [
 
 /* 更新日志（菜单 → 更新日志） */
 const CHANGELOG = [
+  {ver:'2.0.0', date:'2026-10-18', title:'📲 PWA 化：可安装到桌面 + 离线游玩', notes:[
+    '📲 变成标准 PWA：安卓/桌面 Chrome 可「安装到桌面」，iOS 可「添加到主屏幕」，之后独立窗口全屏运行、无地址栏',
+    '📴 离线可玩：Service Worker 预缓存全部资源，断网/飞行模式照常打开继续玩（缓存优先，冷启动不再白屏等网络）',
+    '🔥 更新提示：新版本下载完成或发现新版本时，底部提示条一键刷新生效，不打断你正在进行的操作',
+    '🗂 应用图标全套：192/512 标准图标 + 安卓自适应（maskable）+ iOS 主屏图标 + 浏览器标签图标，另附 6 尺寸 iOS 启动图',
+    '🛡 存档更安全：申请浏览器持久化存储，降低长期不玩被系统清理存档的概率',
+    '🧭 全部相对路径，根目录/子目录部署都正常；file:// 双击本地打开仍可单文件游玩（不注册 SW）',
+  ]},
   {ver:'1.30.2', date:'2026-08-11', title:'🧭 迷路事件新增两个选项', notes:[
     '🪙 丢硬币选路（花费 💰100）：正面走对路精力不扣+随机小发现（生食/净水/皮革/金属），反面精力-10；金币不足时选项灰显禁用',
     '🧭 闭眼转圈：随机转到东(好路+食物)/南(顺畅)/西(荆棘伤血)/北(彻底迷路) 四个路口，结果各异',
@@ -5380,6 +5418,9 @@ function closeModal(){
 
 function openMenu(){
   const card=el('modalcard');
+  // 可安装时（安卓已捕获安装事件 / iOS 非独立窗口）才显示安装入口
+  const installBtn = (typeof pwaCanInstall==='function' && pwaCanInstall())
+    ? `<button class="mbtn" onclick="closeModal();pwaInstall()">📲 安装到桌面（可离线全屏玩）</button>` : '';
   card.innerHTML=`
     <h3>☰ 菜单</h3>
     <div class="msub">末日余烬 v${GAME_VERSION} (build ${BUILD_CODE}) · 作者：${AUTHOR} · 第 ${G.day} 天 · 生存中</div>
@@ -5388,6 +5429,7 @@ function openMenu(){
     <button class="mbtn" onclick="closeModal();openProgress()">📈 进度总览</button>
     <button class="mbtn" onclick="closeModal();openWiki()">📖 百科图鉴</button>
     <button class="mbtn" onclick="closeModal();openChangelog()">📜 更新日志</button>
+    ${installBtn}
     <button class="mbtn" onclick="closeModal();save();toast('已保存')">💾 手动保存</button>
     <button class="mbtn" onclick="closeModal();openExport()">📤 导出存档</button>
     <button class="mbtn" onclick="closeModal();openImport()">📥 导入存档</button>
@@ -6245,6 +6287,150 @@ if(window.__ebhBooting !== false){
     ebhShowCrashPage({isOldCrash:false, backup:ebhRestoreBackup(), err});
   }
 }
+
+/* ============================================================
+   PWA 能力层（v2.0.0）
+   ------------------------------------------------------------
+   · 安装引导：安卓 beforeinstallprompt + 菜单入口 + iOS 手动提示
+   · 离线：SW 缓存 app shell（file:// 下不注册，游戏照常可用）
+   · 更新：SW updatefound / controllerchange 提示 + 切前台比对 version.json
+   · 存档安全：申请持久化存储，降低被浏览器清理的概率
+   ============================================================ */
+const PWA = { deferredPrompt:null, swReg:null, standalone:false, versionAsked:'' };
+function lsGet(k){ try{ return localStorage.getItem(k) }catch(e){ return null } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v) }catch(e){} }
+
+function pwaIsStandalone(){
+  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone===true;
+}
+function pwaIsIOS(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+      || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+}
+function pwaCanInstall(){
+  if(pwaIsStandalone()) return false;
+  return !!PWA.deferredPrompt || pwaIsIOS();
+}
+function pwaBanner(text, onClick, closable){
+  let box=document.getElementById('pwaBanner');
+  if(!box){ box=document.createElement('div'); box.id='pwaBanner'; document.body.appendChild(box); }
+  box.innerHTML = text + (closable ? '<span class="pwa-x">✕</span>' : '');
+  box.onclick = (e)=>{
+    if(e.target && e.target.className==='pwa-x'){ pwaHideBanner(); return; }
+    if(onClick) onClick();
+  };
+  box.style.display='block';
+}
+function pwaHideBanner(){
+  const box=document.getElementById('pwaBanner');
+  if(box) box.style.display='none';
+}
+function pwaInstall(){
+  if(PWA.deferredPrompt){
+    const ev=PWA.deferredPrompt;
+    PWA.deferredPrompt=null;
+    try{ ev.prompt(); }catch(e){}
+    if(ev.userChoice) ev.userChoice.then(()=>pwaHideBanner()).catch(()=>{});
+    lsSet('pwa_tip_install','1');
+    return;
+  }
+  if(pwaIsIOS()){
+    pwaBanner('📲 iOS 安装：点底部「分享」→「添加到主屏幕」，之后可全屏离线玩', ()=>pwaHideBanner(), true);
+  }
+}
+/* 版本比对（文档二·补救路径：SW 字节不变时靠页面静默比对 version.json） */
+async function pwaCheckVersion(){
+  if(!/^https?:$/.test(location.protocol)) return;
+  try{
+    const r=await fetch('./version.json',{cache:'no-store'});
+    if(!r.ok) return;
+    const meta=await r.json();
+    if(meta && meta.ver && meta.ver!==GAME_VERSION && PWA.versionAsked!==meta.ver){
+      PWA.versionAsked=meta.ver;
+      pwaBanner('🔥 发现新版本 v'+meta.ver+'，点此刷新');
+    }
+  }catch(e){}
+}
+(function pwaBoot(){
+  PWA.standalone = pwaIsStandalone();
+
+  /* 离线 / 在线 */
+  window.addEventListener('offline', ()=>{
+    pwaBanner('🌐✕ 当前离线：已缓存的版本仍可正常游玩');
+  });
+  window.addEventListener('online', ()=>{
+    pwaHideBanner();
+    if(typeof toast==='function') toast('🌐 网络已恢复');
+  });
+  /* 冷启动就是离线时 offline 事件不会触发，需主动检查（延迟到安装提示之后，优先级更高） */
+  if(!navigator.onLine){
+    setTimeout(()=>pwaBanner('🌐✕ 当前离线：已缓存的版本仍可正常游玩'), 1200);
+  }
+
+  /* 安装引导：Chromium 系 */
+  window.addEventListener('beforeinstallprompt', (e)=>{
+    e.preventDefault();
+    PWA.deferredPrompt=e;
+    if(!lsGet('pwa_tip_install')) pwaBanner('📲 可安装到桌面，点此一键安装', ()=>pwaInstall());
+  });
+  window.addEventListener('appinstalled', ()=>{
+    PWA.deferredPrompt=null;
+    lsSet('pwa_tip_install','1');
+    pwaHideBanner();
+    if(typeof toast==='function') toast('✅ 已安装到桌面');
+  });
+
+  /* 安装引导：iOS 手动添加（只提示一次） */
+  if(pwaIsIOS() && !PWA.standalone){
+    setTimeout(()=>{
+      if(lsGet('pwa_tip_ios')) return;
+      pwaBanner('📲 点「分享」→「添加到主屏幕」，可全屏离线玩 <span style="opacity:.7">（点此关闭）</span>', ()=>{
+        lsSet('pwa_tip_ios','1');
+        pwaHideBanner();
+      });
+    }, 3500);
+  }
+
+  /* 存档安全：申请持久化存储（失败不影响游戏） */
+  try{
+    if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+  }catch(e){}
+
+  /* Service Worker 只在 https / localhost 注册（file:// 直接打开照常玩） */
+  const canSW = 'serviceWorker' in navigator
+    && (/^https:$/.test(location.protocol) || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname));
+  if(!canSW) return;
+
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', { updateViaCache:'none' })
+    .then((reg)=>{
+      PWA.swReg = reg;
+      reg.addEventListener('updatefound', ()=>{
+        const nw = reg.installing;
+        if(!nw) return;
+        nw.addEventListener('statechange', ()=>{
+          // 已有 controller 说明这是「更新」而不是首次安装
+          if(nw.state==='installed' && navigator.serviceWorker.controller){
+            pwaBanner('🔥 新版本已下载，点此刷新生效', ()=>location.reload());
+          }
+        });
+      });
+    })
+    .catch(()=>{});
+
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(!hadController) return;   // 首次安装接管，不提示
+    pwaBanner('🔥 已更新到新版本，点此刷新', ()=>location.reload());
+  });
+
+  /* 切回前台：两路兜底检查更新（SW update + version.json 比对） */
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden) return;
+    if(PWA.swReg && PWA.swReg.update) PWA.swReg.update().catch(()=>{});
+    pwaCheckVersion();
+  });
+  setTimeout(pwaCheckVersion, 8000);
+})();
 </script>
 </body>
 </html>

@@ -18,6 +18,10 @@
 2. 在汇报里把它单独列成一条「疑似离谱设定」：源码位置 + 实际影响 + 建议怎么改 + 改了会影响谁（玩家体验 / 存档 / 平衡）；
 3. 用户拍板后再作为独立改动提交，**不混在重构提交里**。
 
+发现的东西统一登记在 [`dev-docs/SUSPECTED.md`](dev-docs/SUSPECTED.md)（只增不删，解决后标注结果），不要只写在对话里。
+
+项目文档分布：**根目录**只放 `AGENT.md`（AI 入口）与面向玩家的 `README.md` / `CHANGELOG.md`；**`dev-docs/`** 放开发过程文档（`TODO.md` 重构计划、`SUSPECTED.md` 疑似离谱设定）。
+
 ### 0.2 分步执行，一步一汇报
 
 单次只推进一个可验证的小步：改代码 → 验证 → 汇报结果 → 问下一步。
@@ -98,8 +102,10 @@ splash/            6 张 iOS 启动图（深色主题）
 screenshots/       1 张安装卡片截图
 release.sh         一键发布（测试 → 注入版本 → commit/tag → 打包 → 一致性核对）
 tests/             回归测试（puppeteer，入库但不进发布包）
+tools/             SSOT 校验 / 元数据同步 / 构建脚本
+src/               新架构源码（迁移中：core 纯逻辑 + 后续 ui）
 CHANGELOG.md       完整更新历史（75 版 / 216 条，与游戏内 CHANGELOG 同源）
-TODO.md            待办与重构计划（决策点 / 验收标准 / 里程碑）
+dev-docs/          开发文档：TODO.md（重构计划）/ SUSPECTED.md（疑似离谱设定）
 ```
 
 ### 1.2 运行方式

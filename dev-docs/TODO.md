@@ -105,15 +105,19 @@
 
 | # | 目标模块 | 从 `survival.html` 搬什么 | 验收 |
 |---|---|---|---|
-| 3.1 | `core/data/*.mjs`（按域拆 8–10 个文件） | **已搬 8 张**：`resources` / `skills` / `zones` / `actions` / `recipes` / `upgrades` / `weapons` / `monsters`；**剩余表都带效果函数**（`SHOP.eff`、`LUCK_EVENTS.eff`、`ENCHANTS.effect`、`MERCHANT_GOODS`、`DORA_GOODS`、`EXPLORE_EVENTS.opts[].eff`），需先定「效果函数如何注入」再搬 | **数值快照测试** + 与旧文件逐项 diff（已建立对拍模式：25 条零漂移断言 + 交叉引用校验） |
-| 3.2 | `core/time.ts` | `passTime / nextDay / tick / applyPassive / checkDeath`、季节天气 | 单测：跨日结算、饥饿/口渴掉血、死亡与图腾复活、睡眠被偷 |
-| 3.3 | `core/actions.ts` | `doAction / startAuto / stopAuto / gameTick / onActionBtn` 的结算部分 | 单测：精力扣减、材料不足不扣精力（历史坑 #4）、自动循环停止条件 |
-| 3.4 | `core/craft.ts` | `doCraft / craftArmor / upgradeItem / upgradeCost / recipeVisible / hasRes / spend / addRes` | 单测：22 配方解锁链、装备材质链、强化 10 级后额外消耗 |
-| 3.5 | `core/combat.ts` | `weaponAtk / armorDmgMult / fight / startCombat / bossStats / pharaohStats` | 单测：伤害公式（含强化/附魔/技能）、减伤下限 0.1、Boss 三阶段 |
-| 3.6 | `core/explore.ts` | `doExplore / rollExploreEvent / resolveEvent / lostOpts / pickMerchantGoods` | 单测：按 `w` 权重抽（打桩 `Math.random`）、`disabled` 选项不消耗事件、区域特色怪 45% |
-| 3.7 | `core/npc.ts` | `doraInfo / addDoraFav / doraGoods / doraGiftOpts …`、流浪商人 | 单测：好感 6 级门槛、按等级解锁商品、金币不足禁用 |
-| 3.8 | `core/achievements.ts` | `checkMilestone` 白名单 + `checkZoneAchieve / checkStageAchieve / checkFishAchieve / checkArmorSet` | 单测：`MS` 里 76 个文案 id 与白名单**双向一致**（新增成就漏登记直接红） |
-| 3.9 | `core/wiki.ts` | `wikiSeen / wikiUnlocked / legacyBestiary` | 单测：遭遇即解锁、老档补解锁、未解锁字段显示遮罩 |
+| 3.1 | `core/data/*.mjs` | **已搬 10 张**：`resources` / `skills` / `zones` / `actions` / `recipes` / `upgrades` / `weapons` / `monsters` / `shop` / `luck-events`；**剩余都带效果函数**（`ENCHANTS.effect`、`MERCHANT_GOODS`、`DORA_GOODS`、`EXPLORE_EVENTS`），随对应逻辑模块一起搬 | 数值快照 + 与旧文件逐项 diff（已建立对拍模式：36 条零漂移断言 + 交叉引用校验） |
+| 3.2 | `core/time.mjs` | `passTime / nextDay / tick / applyPassive / checkDeath`、季节天气 | 单测：跨日结算、饥饿/口渴掉血、死亡与图腾复活、睡眠被偷 |
+| 3.3 | `core/actions.mjs` | `doAction / startAuto / stopAuto / gameTick / onActionBtn` 的结算部分 | 单测：精力扣减、材料不足不扣精力（历史坑 #4）、自动循环停止条件 |
+| 3.4 | `core/craft.mjs` | `doCraft / craftArmor / upgradeItem / upgradeCost / recipeVisible / hasRes / spend / addRes` | 单测：22 配方解锁链、装备材质链、强化 10 级后额外消耗 |
+| 3.5 | `core/combat.mjs` | `weaponAtk / armorDmgMult / fight / startCombat / bossStats / pharaohStats` | 单测：伤害公式（含强化/附魔/技能）、减伤下限 0.1、Boss 三阶段 |
+| 3.6 | `core/achievements.mjs` | `checkMilestone` 白名单 + `checkZoneAchieve / checkStageAchieve / checkFishAchieve / checkArmorSet` | 单测：`MS` 里 76 个文案 id 与白名单**双向一致**（新增成就漏登记直接红） |
+| 3.7 | `core/npc.mjs` | `doraInfo / addDoraFav / doraGoods / doraGiftOpts …`、流浪商人 | 单测：好感 6 级门槛、按等级解锁商品、金币不足禁用 |
+| 3.8 | `core/explore.mjs` | `doExplore / rollExploreEvent / resolveEvent / lostOpts / pickMerchantGoods`、`EXPLORE_EVENTS` / `NIGHT_EVENTS` | 单测：按 `w` 权重抽（打桩随机源）、`disabled` 选项不消耗事件、区域特色怪 45% |
+| 3.9 | `core/wiki.mjs` | `wikiSeen / wikiUnlocked / legacyBestiary` | 单测：遭遇即解锁、老档补解锁、未解锁字段显示遮罩 |
+
+**实施顺序（2026-10-25 调整）**：3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7 → 3.8 → 3.9。
+
+原来是先搬探索事件，但 `EXPLORE_EVENTS` 的 `eff` 里混了 `startCombat`（流程跳转）、`checkMilestone`（成就）、`weaponAtk`（战斗计算）、`spend`（扣资源），属于最上层，必须等下面全部就位才搬得动。
 
 - **成本**：中（按模块分批）。**关键纪律**：每搬一个模块，`survival.html` 就删掉对应段，**不允许两份实现并存超过一个提交**。
 
@@ -175,7 +179,7 @@
 3. **内联 `onclick` 断裂** —— 147 个函数被 HTML 内联引用，拆模块后需全量替换为事件委托，否则按钮"点了没反应"。
 4. **渲染函数互调导致递归** —— 拆分时先画调用图，统一走 `renderAll()`。
 5. **产物体积** —— 单文件内联后仍应可控；每次构建记录体积，超阈值就查是不是把大依赖打进来了。
-6. **照搬离谱设定** —— 老代码里数值/机制明显不合理时，默认按原样搬（保证行为等价），但必须在汇报里单列成「疑似离谱设定」等用户拍板，不要静默照搬也不要擅自改（见 `AGENT.md` §0.1）。
+6. **照搬离谱设定** —— 老代码里数值/机制明显不合理时，默认按原样搬（保证行为等价），但必须登记到 [`SUSPECTED.md`](SUSPECTED.md)（源码位置 / 影响 / 建议 / 影响面），等用户拍板后再作为独立改动提交（见 `AGENT.md` §0.1）。
 
 ---
 

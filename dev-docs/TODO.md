@@ -111,7 +111,7 @@
 | 3.4 | `core/craft.mjs` | `doCraft / craftArmor / upgradeItem / upgradeCost / recipeVisible / hasRes / spend / addRes` | 单测：22 配方解锁链、装备材质链、强化 10 级后额外消耗 |
 | 3.5 | `core/combat.mjs` | `weaponAtk / armorDmgMult / fight / startCombat / bossStats / pharaohStats` | 单测：伤害公式（含强化/附魔/技能）、减伤下限 0.1、Boss 三阶段 |
 | 3.6 | `core/achievements.mjs` | **已完成**：`checkMilestone`（数字=天数里程碑，字符串=白名单）+ `checkZoneAchieve / checkStageAchieve / checkFishAchieve / checkArmorSet`；数据在 `data/achievements.mjs`（MS 76 键 / 白名单 69 条 / 天数奖励 7 档） | 单测 10 条：数据对拍、**MS 字符串键 ↔ 白名单双向一致**、天数里程碑（3/7/15/30/60/100/180）、重复触发幂等、区域/阶段/钓鱼/套装全对拍 |
-| 3.7 | `core/npc.mjs` | `doraInfo / addDoraFav / doraGoods / doraGiftOpts …`、流浪商人 | 单测：好感 6 级门槛、按等级解锁商品、金币不足禁用 |
+| 3.7 | `core/npc.mjs` | **已完成**：`doraInfo` / `addDoraFav` / `doraGoods` / `canGift` / `giftDora` / `canBuyDoraGood` / `buyDoraGood` + 商人 `merchantGoods` / `pickMerchantGoods` / `canTrade` / `buyMerchant`；数据在 `data/npc.mjs`（6 级好感 / 10 件口袋 / 4 种礼物 / 23 件商人商品，3 条特殊效果走 `key`） | 单测 11 条：数据逐条对拍、好感 12 档门槛、送礼 4 种、口袋解锁 6 档、图纸两次购买、商人抽取（固定随机 × 学完前后）、两种图纸商品 |
 | 3.8 | `core/explore.mjs` | `doExplore / rollExploreEvent / resolveEvent / lostOpts / pickMerchantGoods`、`EXPLORE_EVENTS` / `NIGHT_EVENTS` | 单测：按 `w` 权重抽（打桩随机源）、`disabled` 选项不消耗事件、区域特色怪 45% |
 | 3.9 | `core/wiki.mjs` | **已完成**：`markSeen` / `isUnlocked` / `markEncounter` / `wikiProgress`；`BESTIARY_IDS` 21 条由怪物表派生（`legacyBestiary` 已在 2.2 随存档层搬完） | 单测 5 条：`markSeen` 对拍、21 条 id 与数据表一致、**老档补解锁产出的 id 必须都在清单内**、遭遇解锁、进度统计 |
 

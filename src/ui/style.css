@@ -304,3 +304,13 @@ textarea#exportArea{
 .craft-item .name .desc{font-size:11px;color:var(--txt-faint);margin-left:6px}
 .craft-item .mat{font-size:11.5px;margin-top:3px}
 .craft-item .make{width:100%;margin-top:6px;padding:7px;border-radius:7px;border:1px solid var(--accent2);background:var(--accent);color:#1a1208;font-size:12.5px;font-weight:700;cursor:pointer}
+
+/* —— P2 新增：装备与强化（§4.1.1） —— */
+.armor-sum{
+  display:flex;justify-content:space-between;align-items:center;gap:8px;
+  font-size:12px;padding:7px 10px;margin:2px 0 6px;
+  border:1px solid var(--line);border-radius:8px;background:var(--bg3);
+}
+.armor-sum b{color:var(--accent)}
+.armor-sum .mult{font-size:10.5px;color:var(--txt-faint)}
+.craft-item .tag{font-size:10px;color:var(--yellow);margin-left:5px}

@@ -2,6 +2,7 @@
 //
 // 与 survival.html 的 UPGRADES / upgradeCost 逐一对应。
 
+/** @type {Record<string, {name: string, desc: string, base: Record<string, number>, need: string, max: number}>} */
 export const UPGRADES = {
   "weapon": {"name":"强化武器","desc":"每级 武器伤害 +10%","base":{"metal":4,"leather":1},"need":"steel","max":15},
   "axe": {"name":"强化斧头","desc":"每级 砍柴产量 +10%","base":{"metal":2,"wood":2},"need":"ironAxe","max":15},

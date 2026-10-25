@@ -8,7 +8,8 @@
 /** 材质升级链（从低到高） */
 export const ARMOR_MATS = ['leather', 'copper', 'iron', 'silver', 'gold', 'steel'];
 
-/** 每种材质的显示名、单件减伤、制作成本 */
+/** 每种材质的显示名、单件减伤、制作成本
+ * @type {Record<string, {name: string, dmg: number, cost: Record<string, number>}>} */
 export const ARMOR_MAT_INFO = {
   leather: { name: '🦺皮', dmg: 0.97, cost: { leather: 6 } },
   copper: { name: '🥉铜', dmg: 0.95, cost: { copper: 4, leather: 1 } },
@@ -18,7 +19,8 @@ export const ARMOR_MAT_INFO = {
   steel: { name: '⚙️钢', dmg: 0.85, cost: { alloy: 5, leather: 1 } },
 };
 
-/** 四个部位 */
+/** 四个部位
+ * @type {Record<string, {name: string}>} */
 export const ARMOR_SLOTS = {
   head: { name: '头盔' },
   body: { name: '胸甲' },

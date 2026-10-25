@@ -56,6 +56,18 @@ export function armorDmgMult(state) {
 }
 
 /**
+ * 成本里的材料是否"见过"（持有 ≥1，或历史获取过）。v1.28.0 的可见性规则。
+ * @param {any} state
+ * @param {Record<string, number>} cost
+ * @returns {boolean}
+ */
+function seenAnyCost(state, cost) {
+  const owned = (state.stats && state.stats.ownedRes) || {};
+  for (const k in cost) if ((state.res[k] || 0) >= 1 || owned[k]) return true;
+  return false;
+}
+
+/**
  * 配方是否在面板可见（v1.28.0）：已解锁永远显示；未解锁需拥有/获取过至少一种材料。
  * @param {any} state
  * @param {string} id
@@ -64,9 +76,34 @@ export function armorDmgMult(state) {
 export function recipeVisible(state, id) {
   const r = RECIPES[id];
   if (!r || !r.cost) return true;
-  return Object.keys(r.cost).some(
-    (t) => (state.res[t] || 0) >= 1 || (state.stats && state.stats.ownedRes && state.stats.ownedRes[t]),
-  );
+  return seenAnyCost(state, r.cost);
+}
+
+/**
+ * 某部位的下一档材质：空装备 → 第一档；已是最后一档 → null。
+ * 未知材质（存档里出现脏值）按"空"处理，退回第一档。
+ * @param {any} state
+ * @param {string} slot
+ * @returns {string | null}
+ */
+export function nextArmorMat(state, slot) {
+  if (!ARMOR_SLOTS[slot]) return null;
+  const cur = armorSlotMat(state, slot);
+  const idx = ARMOR_MATS.indexOf(cur);
+  if (cur === 'none' || idx < 0) return ARMOR_MATS[0] || null;
+  return idx < ARMOR_MATS.length - 1 ? ARMOR_MATS[idx + 1] : null;
+}
+
+/**
+ * 某档材质的制作入口是否可见（与 recipeVisible 同规则）。
+ * @param {any} state
+ * @param {string} mat
+ * @returns {boolean}
+ */
+export function armorMatVisible(state, mat) {
+  const info = ARMOR_MAT_INFO[mat];
+  if (!info || !info.cost) return false;
+  return seenAnyCost(state, info.cost);
 }
 
 /**

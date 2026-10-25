@@ -16,7 +16,7 @@ import {
 } from '../../src/core/data/armor.mjs';
 import {
   doCraft, upgradeItem, craftArmor, armorDmgMult, recipeVisible,
-  enchantItem, upgradeEnchantTbl, hasRes,
+  enchantItem, upgradeEnchantTbl, hasRes, nextArmorMat, armorMatVisible,
 } from '../../src/core/craft.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -263,4 +263,52 @@ test('hasRes：与旧实现语义一致', () => {
   assert.equal(hasRes(s, { wood: 10 }), true);
   assert.equal(hasRes(s, { wood: 11 }), false);
   assert.equal(hasRes(s, { wood: 5, stone: 999 }), false);
+});
+
+test('nextArmorMat：空装备从第一档起，逐档推进，到顶返回 null', () => {
+  const s = createNewState(NOW);
+  for (const slot of Object.keys(ARMOR_SLOTS)) s.items[armorSlotKey(slot)] = 'none';
+
+  // 空装备 → 第一档（皮甲），不是「空」
+  assert.equal(nextArmorMat(s, 'head'), 'leather');
+
+  // 逐档走完：每次「制作并穿上」后下一档正确
+  for (let i = 0; i < ARMOR_MATS.length; i++) {
+    s.items.armorHead = ARMOR_MATS[i];
+    const next = nextArmorMat(s, 'head');
+    assert.equal(next, i < ARMOR_MATS.length - 1 ? ARMOR_MATS[i + 1] : null, `第 ${i} 档的下一档不对`);
+  }
+
+  // 未知材质（脏存档）按"空"处理
+  s.items.armorHead = 'mithril';
+  assert.equal(nextArmorMat(s, 'head'), 'leather');
+
+  // 非法部位
+  assert.equal(nextArmorMat(s, 'tail'), null);
+});
+
+test('nextArmorMat：部位之间互不影响（升级链按部位独立）', () => {
+  const s = createNewState(NOW);
+  s.items.armorHead = 'copper';
+  s.items.armorBody = 'none';
+  assert.equal(nextArmorMat(s, 'head'), 'iron');
+  assert.equal(nextArmorMat(s, 'body'), 'leather');
+});
+
+test('armorMatVisible：没见过材料就不出制作入口', () => {
+  const s = createNewState(NOW);
+  for (const k of Object.keys(s.res)) s.res[k] = 0;
+  s.stats.ownedRes = {};
+
+  assert.equal(armorMatVisible(s, 'leather'), false);  // 需要皮革
+  s.res.leather = 1;
+  assert.equal(armorMatVisible(s, 'leather'), true);
+
+  // 历史获取过（花光了也算见过）
+  const s2 = createNewState(NOW);
+  for (const k of Object.keys(s2.res)) s2.res[k] = 0;
+  s2.stats.ownedRes = { metal: 1 };
+  assert.equal(armorMatVisible(s2, 'iron'), true);
+
+  assert.equal(armorMatVisible(s2, 'none'), false);
 });

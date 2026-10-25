@@ -13,7 +13,9 @@ import { SEASONS, WEATHERS, seasonOf, rollWeather, dailyConsume, advanceHour, ap
 import { resNames, RESOURCES, resPrices } from './core/data/resources.mjs';
 import { RECIPES } from './core/data/recipes.mjs';
 import { SKILL_NAMES } from './core/data/skills.mjs';
-import { doCraft, recipeVisible, hasRes } from './core/craft.mjs';
+import { doCraft, recipeVisible, hasRes, craftArmor, upgradeItem, armorSlotMat, armorDmgMult, nextArmorMat, armorMatVisible } from './core/craft.mjs';
+import { UPGRADES, upgradeCost } from './core/data/upgrades.mjs';
+import { ARMOR_MAT_INFO, ARMOR_SLOTS } from './core/data/armor.mjs';
 import {
   checkAction, payActionCost, interruptsAuto,
   startAuto, stopAuto, nextAutoAction,
@@ -24,7 +26,7 @@ import { ZONES } from './core/data/zones.mjs';
 import { exploreZone, rollExploreEvent } from './core/explore.mjs';
 import { resolveOption, lostOpts } from './core/explore-events.mjs';
 import { pickMonster, fightRound, fightBoss, flee, bossFlee, bait, bossStats, pharaohStats } from './core/combat.mjs';
-import { checkMilestone, checkStageAchieve } from './core/achievements.mjs';
+import { checkMilestone, checkStageAchieve, checkArmorSet } from './core/achievements.mjs';
 import { pickMerchantGoods, canTrade, buyMerchant, doraInfo, doraGoods, DORA_GIFTS, canGift, giftDora, canBuyDoraGood, buyDoraGood, addDoraFav } from './core/npc.mjs';
 import { markEncounter, wikiProgress } from './core/wiki.mjs';
 
@@ -170,19 +172,124 @@ function applyAchievements(list) {
     if (a === 'stage') {
       for (const l of checkStageAchieve(G).logs) log(l.text, l.cls);
     } else if (a === 'armorSet') {
-      // 套装检查在 core/craft 里由 UI 触发
-      continue;
+      for (const l of checkArmorSet(G).logs) log(l.text, l.cls);
     } else {
       for (const l of checkMilestone(G, a).logs) log(l.text, l.cls);
     }
   }
 }
 
-/** 制作面板：22 配方按阶分组 */
+/** 材料成本行：缺的标红（制作 / 装备 / 强化共用）
+ * @param {Record<string, number>} cost */
+function costLine(cost) {
+  return Object.keys(cost).map((k) => {
+    const have = G.res[k] || 0;
+    const need = cost[k];
+    return `<span style="color:${have >= need ? 'var(--txt-dim)' : 'var(--bad)'}">${name(k)} ${have}/${need}</span>`;
+  }).join(' · ');
+}
+
+/** 制作类操作的统一收尾：refused → toast；否则日志 → 成就 → 耗时 → 重渲染 → 存档
+ * @param {{logs?: {text: string, cls: string}[], achievements?: string[], refused?: string, time?: number}} r */
+function finishCraftOp(r) {
+  if (r.refused) return toast(r.refused);
+  for (const l of r.logs) log(l.text, l.cls);
+  applyAchievements(r.achievements);
+  if (r.time) passTime(r.time);
+  renderAll();
+  save();
+}
+
+/** 制作页顶部区块导航：滚到对应区块
+ * @param {string} id */
+function scrollCraftTo(id) {
+  const box = el('actions');
+  const target = el(id);
+  if (!box || !target) return;
+  box.scrollTo({ top: Math.max(0, target.offsetTop - box.offsetTop - 4), behavior: 'smooth' });
+}
+
+/** 装备区：总减伤 + 4 部位材质链
+ * @param {string[]} parts */
+function renderArmor(parts) {
+  const mult = armorDmgMult(G);
+  const pct = Math.round((1 - mult) * 100);
+  parts.push(`<div class="armor-sum"><span>🛡 当前总减伤 <b>${pct}%</b></span>`
+    + `<span class="mult">受伤倍率 ${mult.toFixed(2)}</span></div>`);
+  parts.push('<div class="craft-sep" id="craftArmor">🛡 装备（材质链：皮→铜→铁→银→金→钢，需先装备低级）</div>');
+
+  for (const slot in ARMOR_SLOTS) {
+    const sname = ARMOR_SLOTS[slot].name;
+    const cur = armorSlotMat(G, slot);
+    const curInfo = ARMOR_MAT_INFO[cur] || null;
+    const next = nextArmorMat(G, slot);
+
+    let body;
+    let btn = '';
+    if (!next) {
+      body = `<div class="mat" style="color:var(--ok)">已是最强（${curInfo.name}）</div>`;
+    } else if (!armorMatVisible(G, next)) {
+      body = '<div class="mat" style="color:var(--txt-faint)">收集材料后可制作</div>';
+    } else {
+      const nInfo = ARMOR_MAT_INFO[next];
+      body = '<div class="mat">' + costLine(nInfo.cost) + '</div>';
+      if (hasRes(G, nInfo.cost)) {
+        btn = `<button class="make" data-armor="${slot}:${next}">`
+          + `${cur === 'none' ? '制作并穿上' : '升级到'}${nInfo.name}${sname}（减伤 ${Math.round((1 - nInfo.dmg) * 100)}%）</button>`;
+      }
+    }
+
+    const curTxt = curInfo ? `${curInfo.name}${sname}（减伤 ${Math.round((1 - curInfo.dmg) * 100)}%）` : '空';
+    parts.push(`<div class="craft-item">
+      <div class="name">${sname}<span class="desc">当前：${curTxt}</span></div>
+      ${body}${btn}
+    </div>`);
+  }
+}
+
+/** 强化区：4 类装备，材料随等级递增
+ * @param {string[]} parts */
+function renderUpgrade(parts) {
+  parts.push('<div class="craft-sep" id="craftUp">⬆ 强化（材料随等级递增 · Lv.11 起需符石+合金）</div>');
+
+  for (const key in UPGRADES) {
+    const u = UPGRADES[key];
+    const lv = G.upgrades[key] || 0;
+    const max = u.max || 10;
+    const hot = lv >= 10 ? '<span class="tag">⭐ 高级</span>' : '';
+
+    let body;
+    let btn = '';
+    if (u.need && !G.items[u.need]) {
+      body = `<div class="mat" style="color:var(--warn)">需要先制作 ${/** @type {Record<string, {name: string}>} */ (RECIPES)[u.need].name}</div>`;
+    } else if (lv >= max) {
+      body = '<div class="mat" style="color:var(--ok)">已满级</div>';
+    } else {
+      const cost = upgradeCost(key, lv);
+      body = `<div class="mat">Lv.${lv}/${max} · ${costLine(cost)}</div>`;
+      if (hasRes(G, cost)) btn = `<button class="make" data-upgrade="${key}">强化到 Lv.${lv + 1}</button>`;
+    }
+
+    parts.push(`<div class="craft-item">
+      <div class="name">${u.name}${hot}<span class="desc">${u.desc}</span></div>
+      ${body}${btn}
+    </div>`);
+  }
+}
+
+/** 制作面板：22 配方按阶分组 + 装备 / 强化（TODO §4.1.1） */
 function renderCraft() {
   const box = el('actions');
   if (!box) return;
   box.classList.add('craft-mode');
+
+  const parts = [
+    '<div class="craftnav">'
+    + '<button class="cnav" data-cnav="craft0">⚒ 制作</button>'
+    + '<button class="cnav" data-cnav="craftArmor">🛡 装备</button>'
+    + '<button class="cnav" data-cnav="craftUp">⬆ 强化</button>'
+    + '</div>',
+  ];
 
   const tiers = {};
   for (const id in RECIPES) {
@@ -191,9 +298,9 @@ function renderCraft() {
     (tiers[r.tier] = tiers[r.tier] || []).push([id, r]);
   }
 
-  const parts = [];
+  const cards = [];
   for (const t of Object.keys(tiers).sort()) {
-    parts.push(`<div class="craft-tier">第 ${t} 阶</div>`);
+    cards.push(`<div class="craft-tier">第 ${t} 阶</div>`);
     for (const [id, r] of tiers[t]) {
       const owned = !!G.items[id];
       const lvOk = !r.needLv || (r.skill && (G.skills[r.skill]?.lvl || 1) >= r.needLv);
@@ -210,32 +317,26 @@ function renderCraft() {
         const cur = G.skills[r.skill]?.lvl || 1;
         body = `<div class="mat" style="color:var(--warn)">需要 ${SKILL_NAMES[r.skill] || r.skill} Lv.${r.needLv}（当前 Lv.${cur}）</div>`;
       } else {
-        body = '<div class="mat">' + Object.keys(r.cost).map((k) => {
-          const have = G.res[k] || 0;
-          const need = r.cost[k];
-          return `<span style="color:${have >= need ? 'var(--txt-dim)' : 'var(--bad)'}">${name(k)} ${have}/${need}</span>`;
-        }).join(' · ') + '</div>';
+        body = '<div class="mat">' + costLine(r.cost) + '</div>';
       }
 
-      parts.push(`<div class="craft-item">
+      cards.push(`<div class="craft-item">
         <div class="name">${r.name}<span class="desc">${r.desc}</span></div>
         ${body}
         ${can ? `<button class="make" data-craft="${id}">制作（${r.time} 小时）</button>` : ''}
       </div>`);
     }
   }
+  parts.push(`<div id="craft0">${cards.join('')}</div>`);
+
+  renderArmor(parts);
+  renderUpgrade(parts);
   box.innerHTML = parts.join('');
 }
 
 /** 制作一件 */
 function craftItem(id) {
-  const r = doCraft(G, id);
-  if (r.refused) return toast(r.refused);
-  for (const l of r.logs) log(l.text, l.cls);
-  applyAchievements(r.achievements);
-  if (r.time) passTime(r.time);
-  renderAll();
-  save();
+  finishCraftOp(doCraft(G, id));
 }
 
 /** 背包：进食/饮水 + 资源列表 + 出售 */
@@ -684,6 +785,19 @@ export function boot() {
 
     const craftBtn = target.closest('[data-craft]');
     if (craftBtn) { craftItem(craftBtn.dataset.craft); return; }
+
+    const cnavBtn = /** @type {HTMLElement|null} */ (target.closest('[data-cnav]'));
+    if (cnavBtn) { scrollCraftTo(String(cnavBtn.dataset.cnav)); return; }
+
+    const armorBtn = /** @type {HTMLElement|null} */ (target.closest('[data-armor]'));
+    if (armorBtn) {
+      const [slot, mat] = String(armorBtn.dataset.armor).split(':');
+      finishCraftOp(craftArmor(G, slot, mat));
+      return;
+    }
+
+    const upBtn = /** @type {HTMLElement|null} */ (target.closest('[data-upgrade]'));
+    if (upBtn) { finishCraftOp(upgradeItem(G, String(upBtn.dataset.upgrade))); return; }
 
     const bagBtn = target.closest('[data-bag-act]');
     if (bagBtn) {

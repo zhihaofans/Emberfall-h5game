@@ -9,6 +9,8 @@
 /** @typedef {import('./types.mjs').GameState} GameState */
 /** @typedef {import('./types.mjs').ResMap} ResMap */
 
+import { defaultRes } from './data/resources.mjs';
+
 /** 存档标识（永不改） */
 export const SAVE_TAG = 'EMBER';
 /** 存档结构版本：只在存档字段变化时 +1，并在 migrateFrom 里补迁移 */
@@ -29,12 +31,7 @@ function defaults() {
     v: SAVE_FMT, day: 1, hour: 8, season: 0, weather: 0,
     hp: 100, food: 100, water: 100, stam: 100,
     ill: false, lightWound: false, heavyWound: false,
-    res: {
-      wood: 4, stone: 2, food: 2, cooked: 0, water: 0, clean: 2, herb: 2,
-      metal: 0, leather: 0, alloy: 0, luck: 0, rune: 0, totem: 0,
-      copperOre: 0, silverOre: 0, goldOre: 0, copper: 0, silver: 0, gold: 0,
-      adrenaline: 0, expPotion: 0, luckyDraw: 0, lifePotion: 0,
-    },
+    res: defaultRes(),
     items: {
       axe: false, knife: false, fire: false, puri: false, rod: false, trap: false,
       bed: false, kit: false, iron: false,

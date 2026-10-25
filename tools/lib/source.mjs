@@ -40,3 +40,15 @@ export function topLevelKeys(body) {
 export function flatKeys(body) {
   return new Set([...body.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*:/g)].map((m) => m[1]));
 }
+
+// 取扁平对象体里的键值对（值只支持数字或单引号字符串）。
+// 用于把 survival.html 的数据表读成可比较的对象（迁移期做"零漂移"对拍）。
+export function flatPairs(body) {
+  const out = {};
+  const re = /([A-Za-z_][A-Za-z0-9_]*)\s*:\s*('((?:[^'\\]|\\.)*)'|-?\d+(?:\.\d+)?)/g;
+  let m;
+  while ((m = re.exec(body))) {
+    out[m[1]] = m[3] !== undefined ? m[3].replace(/\\'/g, "'") : Number(m[2]);
+  }
+  return out;
+}

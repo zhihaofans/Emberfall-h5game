@@ -15,6 +15,8 @@
 // 随机性通过 `ctx.random` / `ctx.rnd` 注入，测试可完全确定。
 
 import { resNames } from './data/resources.mjs';
+import { addRes } from './state.mjs';
+import { RECIPES } from './data/recipes.mjs';
 
 /**
  * @typedef {Object} Effect
@@ -48,26 +50,41 @@ export function applyEffects(state, effects, ctx = {}) {
   const rnd = ctx.rnd ?? ((a, b) => Math.floor(random() * (b - a + 1)) + a);
   /** @type {LogEntry[]} */
   const logs = [];
+  /** @type {number|undefined} 当前指令的数值（供 {n} 占位） */
+  let nval;
 
-  const fill = (text) =>
-    text.replace(/\{res:([A-Za-z_][A-Za-z0-9_]*)\}/g, (_, k) => resNames()[k] ?? k);
+  const fill = (text, nval) =>
+    String(text)
+      .replace(/\{res:([A-Za-z_][A-Za-z0-9_]*)\}/g, (_, k) => resNames()[k] ?? k)
+      .replace(/\{n\}/g, String(nval ?? ''));
+
+  /** 数量支持数字或 { rnd: [a,b] } */
+  const amount = (v) =>
+    v && typeof v === 'object' && Array.isArray(v.rnd) ? rnd(v.rnd[0], v.rnd[1]) : Number(v) || 0;
 
   for (const e of effects) {
     switch (e.op) {
       case 'res': {
         const k = String(e.res);
-        if (!(k in state.res)) state.res[k] = 0;
-        state.res[k] += Number(e.n) || 0;
-        // 与 addRes 一致：正向获取时记录"曾经拥有过"，用于配方可见性
-        if ((Number(e.n) || 0) > 0 && state.stats) {
-          if (!state.stats.ownedRes) state.stats.ownedRes = {};
-          state.stats.ownedRes[k] = 1;
-        }
+        nval = amount(e.n);
+        addRes(state, k, nval);
         break;
       }
       case 'gold':
-        state.gold = Math.max(0, (state.gold || 0) + (Number(e.n) || 0));
+        nval = amount(e.n);
+        state.gold = Math.max(0, (state.gold || 0) + nval);
         break;
+      case 'learnRecipe': {
+        const unowned = Object.keys(RECIPES).filter((k) => !state.items[k]);
+        if (unowned.length) {
+          const pick = unowned[Math.floor(random() * unowned.length)];
+          state.items[pick] = true;
+          logs.push({ text: `你学会了 ${RECIPES[pick].name} 的制作方法！`, cls: 'good' });
+        } else {
+          logs.push({ text: '图纸已经看不清了。', cls: 'warn' });
+        }
+        break;
+      }
       case 'set':
         state[String(e.field)] = e.value;
         break;
@@ -99,6 +116,8 @@ export function applyEffects(state, effects, ctx = {}) {
       default:
         throw new Error(`未知的效果指令: ${e.op}`);
     }
+    // 指令自带的日志模板（支持 {n} / {res:key}）
+    if (e.log) logs.push({ text: fill(e.log, nval), cls: e.cls || 'sys' });
   }
   return logs;
 }

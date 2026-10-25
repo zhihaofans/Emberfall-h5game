@@ -41,6 +41,7 @@ const AUTO_MS = 1600;
 let G = null;
 /** @type {{text: string, cls: string}[]} */
 const logBuffer = [];
+/** @type {ReturnType<typeof setInterval> | null} */
 let autoTimer = null;
 let curZone = 'forest';
 let curTab = 'act';
@@ -51,9 +52,26 @@ let eventOpts = [];
 /** @type {any} */
 let pendingCombat = null;
 
-const el = (id) => document.getElementById(id);
+/**
+ * 按 id 取元素。页面骨架（index.html）固定，`el()` 的 id 由 tools/check-ssot.mjs 守着，
+ * 取不到说明骨架被改坏 —— 直接抛错交给全局错误钩子，比静默 return 更容易发现。
+ * @type {(id: string) => HTMLElement}
+ */
+const el = (id) => /** @type {any} */ (document.getElementById(id));
+/** @type {(k: string) => string} */
 const name = (k) => NAMES[k] || k;
+/** @type {(v: number, lo: number, hi: number) => number} */
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+/**
+ * 从事件目标向上找最近的匹配元素。
+ * `closest()` 返回 `Element`，读 `dataset` / `disabled` 需要 `HTMLElement`。
+ * @type {(t: EventTarget | null, sel: string) => HTMLElement | null}
+ */
+const closestEl = (t, sel) => {
+  const node = /** @type {any} */ (t);
+  return node && typeof node.closest === 'function' ? node.closest(sel) : null;
+};
 
 /* ------------------------------ 存档 ------------------------------ */
 
@@ -82,13 +100,16 @@ export function log(text, cls = 'sys') {
   renderLog();
 }
 
+/** @type {ReturnType<typeof setTimeout> | undefined} */
+let toastTimer;
+
+/** @param {string} msg */
 function toast(msg) {
   const t = el('toast');
-  if (!t) return;
   t.textContent = msg;
   t.classList.add('show');
-  clearTimeout(t._t);
-  t._t = setTimeout(() => t.classList.remove('show'), 1600);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
 }
 
 function renderLog() {
@@ -778,35 +799,33 @@ export function boot() {
   log('点击下方按钮开始行动；可以长按「自动」类行动进入放置模式。', 'sys');
 
   el('actions')?.addEventListener('click', (e) => {
-    const target = /** @type {HTMLElement} */ (e.target);
+    const sellBtn = /** @type {HTMLButtonElement|null} */ (closestEl(e.target, '[data-sell]'));
+    if (sellBtn && !sellBtn.disabled) { sellRes(String(sellBtn.dataset.sell)); return; }
 
-    const sellBtn = target.closest('[data-sell]');
-    if (sellBtn && !sellBtn.disabled) { sellRes(sellBtn.dataset.sell); return; }
+    const craftBtn = closestEl(e.target, '[data-craft]');
+    if (craftBtn) { craftItem(String(craftBtn.dataset.craft)); return; }
 
-    const craftBtn = target.closest('[data-craft]');
-    if (craftBtn) { craftItem(craftBtn.dataset.craft); return; }
-
-    const cnavBtn = /** @type {HTMLElement|null} */ (target.closest('[data-cnav]'));
+    const cnavBtn = closestEl(e.target, '[data-cnav]');
     if (cnavBtn) { scrollCraftTo(String(cnavBtn.dataset.cnav)); return; }
 
-    const armorBtn = /** @type {HTMLElement|null} */ (target.closest('[data-armor]'));
+    const armorBtn = closestEl(e.target, '[data-armor]');
     if (armorBtn) {
       const [slot, mat] = String(armorBtn.dataset.armor).split(':');
       finishCraftOp(craftArmor(G, slot, mat));
       return;
     }
 
-    const upBtn = /** @type {HTMLElement|null} */ (target.closest('[data-upgrade]'));
+    const upBtn = closestEl(e.target, '[data-upgrade]');
     if (upBtn) { finishCraftOp(upgradeItem(G, String(upBtn.dataset.upgrade))); return; }
 
-    const bagBtn = target.closest('[data-bag-act]');
+    const bagBtn = closestEl(e.target, '[data-bag-act]');
     if (bagBtn) {
       if (bagBtn.dataset.bagAct === 'eat') doAction('eat');
       else if (bagBtn.dataset.bagAct === 'drink') doAction('drink');
       return;
     }
 
-    const btn = target.closest('.actbtn');
+    const btn = closestEl(e.target, '.actbtn');
     if (!btn) return;
     const kind = btn.dataset.kind;
     if (!kind) return;
@@ -815,7 +834,7 @@ export function boot() {
   });
 
   el('tabs')?.addEventListener('click', (e) => {
-    const tab = /** @type {HTMLElement} */ (e.target).closest('.tab');
+    const tab = closestEl(e.target, '.tab');
     if (!tab || !tab.dataset.tab) return;
     curTab = tab.dataset.tab;
     for (const b of document.querySelectorAll('#tabs .tab')) b.classList.toggle('on', b === tab);
@@ -823,7 +842,7 @@ export function boot() {
   });
 
   el('zonebar')?.addEventListener('click', (e) => {
-    const btn = /** @type {HTMLElement} */ (e.target).closest('.zonebtn');
+    const btn = closestEl(e.target, '.zonebtn');
     if (!btn) return;
     if (btn.dataset.locked) { toast('🔒 ' + btn.dataset.locked); return; }
     if (btn.dataset.zone) {
@@ -834,11 +853,10 @@ export function boot() {
   });
 
   el('evwrap')?.addEventListener('click', (e) => {
-    const target = /** @type {HTMLElement} */ (e.target);
-    const combatBtn = target.closest('[data-combat]');
+    const combatBtn = closestEl(e.target, '[data-combat]');
     if (combatBtn) { doCombatAction(combatBtn.dataset.combat); return; }
 
-    const doraBtn = target.closest('[data-dora]');
+    const doraBtn = closestEl(e.target, '[data-dora]');
     if (doraBtn) {
       const act = doraBtn.dataset.dora;
       if (act === 'gift') showDoraGifts();
@@ -854,7 +872,7 @@ export function boot() {
       return;
     }
 
-    const optBtn = target.closest('[data-idx]');
+    const optBtn = closestEl(e.target, '[data-idx]');
     if (optBtn) resolveEventIdx(Number(optBtn.dataset.idx));
   });
 

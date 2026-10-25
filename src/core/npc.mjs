@@ -11,7 +11,7 @@ import { resNames } from './data/resources.mjs';
 // 送礼表给 UI 直接渲染用（避免 UI 层去 import data/）
 export { DORA_GIFTS };
 
-/** @typedef {{text: string, cls: string}} LogEntry */
+/** @typedef {import('./types.mjs').LogEntry} LogEntry */
 
 /**
  * 当前好感度信息。
@@ -44,7 +44,9 @@ export function addDoraFav(state, n) {
   const before = doraInfo(state);
   state.npcDora.fav = (state.npcDora.fav || 0) + n;
   const after = doraInfo(state);
+  /** @type {LogEntry[]} */
   const logs = [];
+  /** @type {string[]} */
   const achievements = [];
   if (after.lvl > before.lvl) {
     logs.push({ text: `🤖 猫耳机器人的眼睛亮了亮：「好感度提升！我们现在是「${after.name}」啦！」`, cls: 'good' });
@@ -112,7 +114,9 @@ export function canBuyDoraGood(state, gd) {
  * @returns {{logs: LogEntry[], achievements: string[], refused?: string}}
  */
 export function buyDoraGood(state, gd) {
+  /** @type {LogEntry[]} */
   const logs = [];
+  /** @type {string[]} */
   const achievements = [];
   const names = resNames();
   if (!gd) return { logs, achievements };
@@ -205,6 +209,7 @@ function trade(state, good) {
  */
 export function buyMerchant(state, good, ctx = {}) {
   const random = ctx.random ?? Math.random;
+  /** @type {LogEntry[]} */
   const logs = [];
   const names = resNames();
   if (!good) return { logs };

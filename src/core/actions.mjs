@@ -96,7 +96,7 @@ export function interruptsAuto(kind) {
 // 原实现里 case 内部用 `toast(...); return;` 提前结束的，这里用 `refused` 字段表达，
 // 由调用方决定是弹 toast 还是写日志。
 
-/** @typedef {{text: string, cls: string}} LogEntry */
+/** @typedef {import('./types.mjs').LogEntry} LogEntry */
 /** @typedef {{random?: () => number, rnd?: (a: number, b: number) => number}} Ctx */
 
 /**
@@ -117,6 +117,7 @@ function randomOf(ctx = {}) {
  */
 export function doEat(state, ctx) {
   const { random, rnd } = randomOf(ctx);
+  /** @type {LogEntry[]} */
   const logs = [];
   if (state.food >= 100) return { logs, refused: '你已经吃饱了' };
 
@@ -145,6 +146,7 @@ export function doEat(state, ctx) {
  */
 export function doDrink(state, ctx) {
   const { random, rnd } = randomOf(ctx);
+  /** @type {LogEntry[]} */
   const logs = [];
   if (state.water >= 100) return { logs, refused: '你已经喝足了' };
 
@@ -171,6 +173,7 @@ export function doDrink(state, ctx) {
  * @returns {{logs: LogEntry[]}}
  */
 export function doSleep(state) {
+  /** @type {LogEntry[]} */
   const logs = [];
   let foodOk = true;
   let waterOk = true;
@@ -206,6 +209,7 @@ export function doSleep(state) {
  */
 export function doHeal(state, ctx, resName = (k) => k) {
   const { rnd } = randomOf(ctx);
+  /** @type {LogEntry[]} */
   const logs = [];
   if (state.hp >= 100) return { logs, refused: '生命值已满，无需治疗' };
   const n = Math.min(state.res.herb || 0, rnd(2, 4));
@@ -237,6 +241,7 @@ export function doHeal(state, ctx, resName = (k) => k) {
  */
 export function doFetch(state, ctx, resName = (k) => k) {
   const { random, rnd } = randomOf(ctx);
+  /** @type {LogEntry[]} */
   const logs = [];
   const n = rnd(5, 8);
   addRes(state, 'water', n);
@@ -259,6 +264,7 @@ export function doFetch(state, ctx, resName = (k) => k) {
  */
 export function doCook(state, ctx, resName = (k) => k) {
   const { rnd } = randomOf(ctx);
+  /** @type {LogEntry[]} */
   const logs = [];
   const lv = skillLvl(state, 'cook');
   const n = Math.min(state.res.food || 0, rnd(2, 5));
@@ -283,6 +289,7 @@ export function doCook(state, ctx, resName = (k) => k) {
  */
 export function doBoil(state, ctx, resName = (k) => k) {
   const { rnd } = randomOf(ctx);
+  /** @type {LogEntry[]} */
   const logs = [];
   const n = Math.min(state.res.water || 0, rnd(3, 6));
   if (n <= 0) {
@@ -304,6 +311,7 @@ export function doBoil(state, ctx, resName = (k) => k) {
  */
 export function doChop(state, ctx, resName = (k) => k) {
   const { rnd } = randomOf(ctx);
+  /** @type {LogEntry[]} */
   const logs = [];
   const lv = skillLvl(state, 'chop');
   const up = 1 + (state.upgrades.axe || 0) * 0.1;
@@ -325,6 +333,7 @@ export function doChop(state, ctx, resName = (k) => k) {
  */
 export function doHunt(state, ctx, resName = (k) => k) {
   const { random, rnd } = randomOf(ctx);
+  /** @type {LogEntry[]} */
   const logs = [];
   const lv = skillLvl(state, 'hunt');
   const mult = state.items.iron ? 1.8 : state.items.knife ? 1.3 : 0.8;
@@ -352,6 +361,7 @@ export function doHunt(state, ctx, resName = (k) => k) {
  */
 export function doSmelt(state, ctx, resName = (k) => k) {
   const { rnd } = randomOf(ctx);
+  /** @type {LogEntry[]} */
   const logs = [];
   const n = Math.min(state.res.metal || 0, rnd(1, 2));
   if (n <= 0) {
@@ -380,7 +390,9 @@ export function doSmelt(state, ctx, resName = (k) => k) {
  */
 export function doMineOre(state, ctx, resName = (k) => k) {
   const { random, rnd } = randomOf(ctx);
+  /** @type {LogEntry[]} */
   const logs = [];
+  /** @type {string[]} */
   const achievements = [];
   const lv = skillLvl(state, 'mine');
   const eff = 1 + ((state.enchant && state.enchant.tool) || 0) * 0.08;
@@ -414,7 +426,9 @@ export function doMineOre(state, ctx, resName = (k) => k) {
  * @returns {{logs: LogEntry[], achievements: string[]}}
  */
 export function doSmeltOre(state, resName = (k) => k) {
+  /** @type {LogEntry[]} */
   const logs = [];
+  /** @type {string[]} */
   const achievements = [];
   if (!state.items.forge) {
     logs.push({ text: '需要先制作铁匠炉。', cls: 'warn' });
@@ -451,8 +465,11 @@ export function doSmeltOre(state, resName = (k) => k) {
  */
 export function doFish(state, ctx = {}) {
   const { random, rnd } = randomOf(ctx);
+  /** @type {LogEntry[]} */
   const logs = [];
+  /** @type {string[]} */
   const achievements = [];
+  /** @type {{skill: string, n: number}[]} */
   const xp = [];
   const lv = skillLvl(state, 'fish');
   const up = state.upgrades.rod || 0;
@@ -463,6 +480,7 @@ export function doFish(state, ctx = {}) {
   }
 
   const pick = (table) => {
+    /** @type {any[]} */
     const pool = [];
     table.forEach((t) => { for (let i = 0; i < t.w; i++) pool.push(t); });
     return pool[Math.floor(random() * pool.length)];
@@ -549,6 +567,7 @@ export function startAuto(state, kind) {
  * @returns {{logs: LogEntry[]}}
  */
 export function stopAuto(state, silent = false) {
+  /** @type {LogEntry[]} */
   const logs = [];
   if (state.autoAction) {
     state.autoAction = null;

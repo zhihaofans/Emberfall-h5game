@@ -81,4 +81,14 @@
  * @property {number} [__v1274_comp] 一次性补偿标记（v1.27.4 金币 NaN）
  */
 
+/**
+ * 一条日志。UI 直接把它渲染成 `.logline`。
+ *
+ * 这是全项目唯一一份定义：core 各模块通过
+ * `@typedef {import('./types.mjs').LogEntry} LogEntry` 引用，不再各写一份。
+ * @typedef {Object} LogEntry
+ * @property {string} text
+ * @property {string} cls 'sys' | 'info' | 'good' | 'warn' | 'bad'
+ */
+
 export {};

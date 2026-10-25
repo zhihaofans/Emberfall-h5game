@@ -9,7 +9,7 @@ import { addRes, has, spend, skillLvl } from './state.mjs';
 import { weaponAtk } from './combat.mjs';
 import { resNames } from './data/resources.mjs';
 
-/** @typedef {{text: string, cls: string}} LogEntry */
+/** @typedef {import('./types.mjs').LogEntry} LogEntry */
 
 /**
  * 按权重抽一个探索事件（只抽本区域可用的）。
@@ -18,6 +18,7 @@ import { resNames } from './data/resources.mjs';
  * @returns {any|null}
  */
 export function pickExploreEvent(zone, random = Math.random) {
+  /** @type {any[]} */
   const pool = [];
   for (const e of EXPLORE_EVENTS) {
     if (e.zone && e.zone !== zone) continue;
@@ -219,7 +220,9 @@ export function resolveOption(state, event, idx, ctx = {}) {
   const rnd = ctx.rnd ?? ((a, b) => Math.floor(random() * (b - a + 1)) + a);
   /** @type {LogEntry[]} */
   const logs = [];
+  /** @type {string[]} */
   const achievements = [];
+  /** @type {any[]} */
   const combat = [];
   const opt = event && event.opts ? event.opts[idx] : null;
   if (!opt) return { logs, achievements, combat };

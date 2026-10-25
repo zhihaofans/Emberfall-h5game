@@ -7,6 +7,8 @@
 //
 // nextDay 里"设施产出 / 夜间事件 / 成就 / 渲染"等部分要在后续模块搬，这里只做纯计算。
 
+/** @typedef {import('./types.mjs').LogEntry} LogEntry */
+
 export const SEASONS = ['春', '夏', '秋', '冬'];
 export const WEATHERS = ['晴', '阴', '小雨', '暴雨', '暴风雪'];
 
@@ -77,6 +79,7 @@ export function advanceHour(state, h) {
  */
 export function applyPassive(state) {
   /** @type {{text: string, cls: string}[]} */
+  /** @type {LogEntry[]} */
   const logs = [];
   const clamp = (v) => Math.max(0, Math.min(100, v));
   const adrenalined = (state.adrenalineLeft || 0) > 0;

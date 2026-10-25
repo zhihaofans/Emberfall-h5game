@@ -18,6 +18,8 @@ import {
 import { addRes, spend, has, skillLvl } from './state.mjs';
 import { resNames } from './data/resources.mjs';
 
+/** @typedef {import('./types.mjs').LogEntry} LogEntry */
+
 /**
  * 材料是否足够（对应旧 hasRes(cost)）。
  * @param {any} state
@@ -113,6 +115,7 @@ export function armorMatVisible(state, mat) {
  * @returns {{logs: {text: string, cls: string}[], achievements?: string[], refused?: string, time?: number}}
  */
 export function doCraft(state, id) {
+  /** @type {LogEntry[]} */
   const logs = [];
   const r = RECIPES[id];
   if (!r) return { logs };
@@ -150,6 +153,7 @@ export function doCraft(state, id) {
  * @returns {{logs: {text: string, cls: string}[], achievements?: string[], refused?: string, time?: number}}
  */
 export function upgradeItem(state, key) {
+  /** @type {LogEntry[]} */
   const logs = [];
   const u = UPGRADES[key];
   if (!u) return { logs };
@@ -182,6 +186,7 @@ export function upgradeItem(state, key) {
  * @returns {{logs: {text: string, cls: string}[], achievements?: string[], refused?: string}}
  */
 export function craftArmor(state, slot, mat) {
+  /** @type {LogEntry[]} */
   const logs = [];
   const sk = armorSlotKey(slot);
   const idx = ARMOR_MATS.indexOf(mat);
@@ -225,6 +230,7 @@ export function craftArmor(state, slot, mat) {
  * @returns {{logs: {text: string, cls: string}[], refused?: string, time?: number}}
  */
 export function enchantItem(state, kind) {
+  /** @type {LogEntry[]} */
   const logs = [];
   if (!state.items.enchantTbl) return { logs, refused: '需要先制作🔮附魔台' };
 
@@ -248,6 +254,7 @@ export function enchantItem(state, kind) {
  * @returns {{logs: {text: string, cls: string}[], refused?: string, time?: number}}
  */
 export function upgradeEnchantTbl(state) {
+  /** @type {LogEntry[]} */
   const logs = [];
   if (!state.items.enchantTbl) return { logs, refused: '需要先制作🔮附魔台' };
 

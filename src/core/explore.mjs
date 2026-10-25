@@ -8,7 +8,7 @@ import { NIGHT_EVENTS } from './data/events-night.mjs';
 import { addRes, has, skillLvl } from './state.mjs';
 import { resNames } from './data/resources.mjs';
 
-/** @typedef {{text: string, cls: string}} LogEntry */
+/** @typedef {import('./types.mjs').LogEntry} LogEntry */
 
 function rngOf(ctx = {}) {
   const random = ctx.random ?? Math.random;
@@ -31,6 +31,7 @@ export function exploreZone(state, opts) {
   const { random, rnd } = rngOf(opts.ctx);
   const z = ZONES[zone];
   const names = resNames();
+  /** @type {LogEntry[]} */
   const logs = [];
   if (!z) return { logs };
 
@@ -88,7 +89,9 @@ export function exploreZone(state, opts) {
 export function rollNightEvent(state, opts = {}) {
   const { random, rnd } = rngOf(opts.ctx);
   const names = resNames();
+  /** @type {LogEntry[]} */
   const logs = [];
+  /** @type {string[]} */
   const achievements = [];
 
   // 金币小偷：余额 > 1 万时 10% 被偷光（只留 1）
@@ -117,6 +120,7 @@ export function rollNightEvent(state, opts = {}) {
     return { logs, achievements, combat: 'boss' };
   }
 
+  /** @type {any[]} */
   const pool = [];
   NIGHT_EVENTS.forEach((e) => { for (let i = 0; i < e.w; i++) pool.push(e); });
   const ev = pool[Math.floor(random() * pool.length)];

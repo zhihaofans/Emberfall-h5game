@@ -39,17 +39,13 @@ import { RECIPES } from './data/recipes.mjs';
  * @property {string} [cls]
  */
 
-/**
- * @typedef {Object} LogEntry
- * @property {string} text
- * @property {string} cls
- */
+/** @typedef {import('./types.mjs').LogEntry} LogEntry */
 
 /**
  * 执行一组效果指令。
  * @param {any} state 游戏状态（原地修改）
  * @param {Effect[]} effects
- * @param {{random?: () => number, rnd?: (a: number, b: number) => number}} [ctx]
+ * @param {{random?: () => number, rnd?: (a: number, b: number) => number, combat?: {night?: boolean, forceBeasts?: boolean}[], achievements?: string[]}} [ctx]
  * @returns {LogEntry[]} 需要写进日志的条目
  */
 export function applyEffects(state, effects, ctx = {}) {

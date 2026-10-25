@@ -12,6 +12,7 @@ import { bestiaryIds } from './combat.mjs';
  *   pyr0–2 金字塔怪 · moon-dog/moon-wolf 月圆进化 · boss0–2 兽王三阶段 · pharaoh0–2 法老三阶段
  */
 export const BESTIARY_IDS = (() => {
+  /** @type {string[]} */
   const ids = [];
   BEASTS.forEach((_, i) => ids.push('beast' + i));
   ['forest', 'river', 'hills'].forEach((z) => ids.push('zone-' + z));

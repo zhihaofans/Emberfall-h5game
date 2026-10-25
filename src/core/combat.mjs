@@ -121,6 +121,7 @@ export function pickMonster(state, opts = {}) {
  * @returns {string[]}
  */
 export function bestiaryIds(picked) {
+  /** @type {string[]} */
   const ids = [];
   if (picked.pool === 'beasts') ids.push('beast' + picked.idx);
   else if (picked.pool === 'robots') ids.push('rob' + picked.idx);
@@ -148,7 +149,7 @@ import { addRes, spend, skillLvl } from './state.mjs';
 import { armorDmgMult } from './craft.mjs';
 import { resNames } from './data/resources.mjs';
 
-/** @typedef {{text: string, cls: string}} LogEntry */
+/** @typedef {import('./types.mjs').LogEntry} LogEntry */
 
 /**
  * 普通怪单回合对拼。
@@ -160,7 +161,9 @@ import { resNames } from './data/resources.mjs';
 export function fightRound(state, monster, ctx = {}) {
   const random = ctx.random ?? Math.random;
   const rnd = ctx.rnd ?? ((a, b) => Math.floor(random() * (b - a + 1)) + a);
+  /** @type {LogEntry[]} */
   const logs = [];
+  /** @type {string[]} */
   const achievements = [];
   const names = resNames();
 
@@ -216,7 +219,9 @@ export function fightRound(state, monster, ctx = {}) {
 export function fightBoss(state, opts, ctx = {}) {
   const random = ctx.random ?? Math.random;
   const rnd = ctx.rnd ?? ((a, b) => Math.floor(random() * (b - a + 1)) + a);
+  /** @type {LogEntry[]} */
   const logs = [];
+  /** @type {string[]} */
   const achievements = [];
   const names = resNames();
   const isPharaoh = !!opts.isPharaoh;
@@ -295,10 +300,11 @@ export function fightBoss(state, opts, ctx = {}) {
  * @param {any} state
  * @param {any} monster
  * @param {{random?: () => number}} [ctx]
- * @returns {{logs: LogEntry[]}}
+ * @returns {{logs: LogEntry[], achievements?: string[]}}
  */
 export function flee(state, monster, ctx = {}) {
   const random = ctx.random ?? Math.random;
+  /** @type {LogEntry[]} */
   const logs = [];
   const ok = random() < 0.55;
   state.stam = Math.max(0, Math.min(100, state.stam - 12));
@@ -315,10 +321,11 @@ export function flee(state, monster, ctx = {}) {
  * 从 Boss 战撤离：消耗 15 精力，80% 成功；失败重伤。
  * @param {any} state
  * @param {{random?: () => number}} [ctx]
- * @returns {{logs: LogEntry[]}}
+ * @returns {{logs: LogEntry[], achievements?: string[]}}
  */
 export function bossFlee(state, ctx = {}) {
   const random = ctx.random ?? Math.random;
+  /** @type {LogEntry[]} */
   const logs = [];
   state.stam = Math.max(0, Math.min(100, state.stam - 15));
   if (random() < 0.8) {
@@ -336,10 +343,11 @@ export function bossFlee(state, ctx = {}) {
  * @param {any} state
  * @param {any} monster
  * @param {{random?: () => number}} [ctx]
- * @returns {{logs: LogEntry[], ok: boolean}}
+ * @returns {{logs: LogEntry[], ok: boolean, achievements?: string[]}}
  */
 export function bait(state, monster, ctx = {}) {
   const random = ctx.random ?? Math.random;
+  /** @type {LogEntry[]} */
   const logs = [];
   if (!spend(state, 'food', 2)) return { logs, ok: false };
 

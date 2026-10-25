@@ -12,7 +12,7 @@ import { ARMOR_MATS, ARMOR_SLOTS } from './data/armor.mjs';
 import { addRes, skillLvl } from './state.mjs';
 import { resNames } from './data/resources.mjs';
 
-/** @typedef {{text: string, cls: string}} LogEntry */
+/** @typedef {import('./types.mjs').LogEntry} LogEntry */
 
 /**
  * 触发一个成就 / 天数里程碑。
@@ -25,6 +25,7 @@ import { resNames } from './data/resources.mjs';
  * @returns {{logs: LogEntry[]}}
  */
 export function checkMilestone(state, key) {
+  /** @type {LogEntry[]} */
   const logs = [];
   if (!state.milestones) state.milestones = {};
 
@@ -76,6 +77,7 @@ export function checkMilestone(state, key) {
  * @returns {{logs: LogEntry[]}}
  */
 export function checkZoneAchieve(state) {
+  /** @type {LogEntry[]} */
   const logs = [];
   const zc = state.stats.zoneCnt || {};
   for (const z in ZONES) {
@@ -95,6 +97,7 @@ export function checkZoneAchieve(state) {
  * @returns {{logs: LogEntry[]}}
  */
 export function checkStageAchieve(state) {
+  /** @type {LogEntry[]} */
   const logs = [];
   const st = state.stats;
   if (st.kills >= 10) logs.push(...checkMilestone(state, 'kill10').logs);
@@ -117,6 +120,7 @@ export function checkStageAchieve(state) {
  * @returns {{logs: LogEntry[]}}
  */
 export function checkFishAchieve(state, kind) {
+  /** @type {LogEntry[]} */
   const logs = [];
   if (kind === 'treasure') {
     logs.push(...checkMilestone(state, 'fishTreas').logs);
@@ -153,6 +157,7 @@ export function checkFishAchieve(state, kind) {
  * @returns {{logs: LogEntry[]}}
  */
 export function checkArmorSet(state) {
+  /** @type {LogEntry[]} */
   const logs = [];
   if (!state.stats.setsWorn) state.stats.setsWorn = [];
   const matOf = (slot) => state.items['armor' + slot[0].toUpperCase() + slot.slice(1)] || 'none';

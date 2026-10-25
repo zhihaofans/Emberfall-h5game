@@ -518,6 +518,7 @@ if (!canSW) return;   // file:// 直接打开：不注册、不报错、游戏�
 | e2e | `node tests/run-e2e.mjs` | 真实 Chromium | CI；本地能起浏览器时也跑 |
 | CI | `.github/workflows/ci.yml` | GitHub Runner | push / PR / 手动 |
 
+> **单测必须串行跑**：本机容器里 `node --test` 并行跑多个测试文件会 SIGSEGV（内存限制），所以脚本里统一带 `--test-concurrency=1`。
 > **容器/沙箱里 Chromium 常起不来**（本仓库实测：`/usr/bin/chromium` 打开页面即 SIGTRAP，且 `/workspace` 为 noexec + 不能建符号链接，`npm ci` 也会 EPERM）。
 > 这种情况以 **CI 的 e2e 结果为准**，不要把"本地跑不了"当成"测试通过"。
 

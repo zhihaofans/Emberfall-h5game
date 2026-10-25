@@ -113,7 +113,7 @@
 | 3.6 | `core/achievements.mjs` | **已完成**：`checkMilestone`（数字=天数里程碑，字符串=白名单）+ `checkZoneAchieve / checkStageAchieve / checkFishAchieve / checkArmorSet`；数据在 `data/achievements.mjs`（MS 76 键 / 白名单 69 条 / 天数奖励 7 档） | 单测 10 条：数据对拍、**MS 字符串键 ↔ 白名单双向一致**、天数里程碑（3/7/15/30/60/100/180）、重复触发幂等、区域/阶段/钓鱼/套装全对拍 |
 | 3.7 | `core/npc.mjs` | `doraInfo / addDoraFav / doraGoods / doraGiftOpts …`、流浪商人 | 单测：好感 6 级门槛、按等级解锁商品、金币不足禁用 |
 | 3.8 | `core/explore.mjs` | `doExplore / rollExploreEvent / resolveEvent / lostOpts / pickMerchantGoods`、`EXPLORE_EVENTS` / `NIGHT_EVENTS` | 单测：按 `w` 权重抽（打桩随机源）、`disabled` 选项不消耗事件、区域特色怪 45% |
-| 3.9 | `core/wiki.mjs` | `wikiSeen / wikiUnlocked / legacyBestiary` | 单测：遭遇即解锁、老档补解锁、未解锁字段显示遮罩 |
+| 3.9 | `core/wiki.mjs` | **已完成**：`markSeen` / `isUnlocked` / `markEncounter` / `wikiProgress`；`BESTIARY_IDS` 21 条由怪物表派生（`legacyBestiary` 已在 2.2 随存档层搬完） | 单测 5 条：`markSeen` 对拍、21 条 id 与数据表一致、**老档补解锁产出的 id 必须都在清单内**、遭遇解锁、进度统计 |
 
 **实施顺序（2026-10-25 调整）**：3.2 → 3.3 → 3.4 → 3.5 → 3.6 → 3.7 → 3.8 → 3.9。
 

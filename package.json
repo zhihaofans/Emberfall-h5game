@@ -1,0 +1,17 @@
+{
+  "name": "emberfall",
+  "private": true,
+  "description": "末日余烬 / Emberfall —— 末日废土文字生存点击游戏（纯前端单文件 + PWA）。版本号唯一源是 version.json，不要在 package.json 里另写一个。",
+  "type": "module",
+  "scripts": {
+    "ssot": "node tools/check-ssot.mjs",
+    "sync": "node tools/sync-meta.mjs",
+    "unit": "node --test tests/unit/*.test.mjs",
+    "e2e": "node tests/run-e2e.mjs",
+    "verify": "node tools/check-ssot.mjs && node --test tests/unit/*.test.mjs",
+    "verify:ci": "node tools/check-ssot.mjs && node --test tests/unit/*.test.mjs && node tests/run-e2e.mjs"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^23.11.1"
+  }
+}

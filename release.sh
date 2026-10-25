@@ -26,57 +26,22 @@ fi
 echo -e "${GREEN}✅ SSOT 校验通过${NC}"
 
 echo ""
-echo -e "${YELLOW}=== 1. 跑全部测试 ===${NC}"
-TEST_DIR="$(pwd)/tests"                    # 脚本已 cd 到仓库根，测试就在仓库内
+echo -e "${YELLOW}=== 1. 跑 e2e（统一入口 tests/run-e2e.mjs）===${NC}"
 CHROME="${CHROMIUM_PATH:-/usr/bin/chromium}"
 export CHROMIUM_PATH="$CHROME"             # tests/_env.js 读取该变量
-if [ ! -d "$TEST_DIR" ]; then
-  echo -e "${RED}❌ 测试目录不存在：$TEST_DIR，中止发布${NC}"
-  exit 1
-fi
-if [ ! -d "$TEST_DIR/node_modules/puppeteer-core" ]; then
-  echo -e "${RED}❌ 缺少依赖：请先在 tests/ 下执行 npm ci，中止发布${NC}"
+if [ ! -d node_modules/puppeteer-core ]; then
+  echo -e "${RED}❌ 缺少依赖：请先在仓库根执行 npm ci，中止发布${NC}"
   exit 1
 fi
 if [ ! -x "$CHROME" ]; then
   echo -e "${RED}❌ 浏览器不可执行：$CHROME（可用 CHROMIUM_PATH 覆盖），中止发布${NC}"
   exit 1
 fi
-
-total=0; fail=0; miss=0
-for f in test.js version.js melvor.js regress.js layout.js \
-         v1100.js v1110.js v1111.js v1120.js v1220.js v1230.js \
-         v1298.js v1299.js v1300.js v200.js; do
-  if [ ! -f "$TEST_DIR/$f" ]; then
-    echo -e "${RED}  ✗ 缺少测试文件：tests/$f${NC}"
-    miss=$((miss+1))
-    continue
-  fi
-  out=$(cd "$TEST_DIR" && node "$f" 2>&1 || true)
-  p=$(echo "$out" | grep -c "✅" || true)
-  fa=$(echo "$out" | grep -c "❌" || true)
-  total=$((total+p))
-  fail=$((fail+fa))
-  if [ "$fa" -gt 0 ]; then
-    echo -e "${RED}  ✗ $f: $p 通过 / $fa 失败${NC}"
-    echo "$out" | grep "❌" | head -5 || true
-  else
-    echo -e "${GREEN}  ✓ $f: $p 通过${NC}"
-  fi
-done
-if [ "$miss" -gt 0 ]; then
-  echo -e "${RED}❌ 有 $miss 个测试文件缺失，中止发布${NC}"
+if ! node tests/run-e2e.mjs; then
+  echo -e "${RED}❌ e2e 未通过（有失败、有文件跑不起来，或 0 断言），中止发布${NC}"
   exit 1
 fi
-if [ "$fail" -gt 0 ]; then
-  echo -e "${RED}❌ 测试有 $fail 个失败，中止发布${NC}"
-  exit 1
-fi
-if [ "$total" -eq 0 ]; then
-  echo -e "${RED}❌ 0 项断言被执行（测试未真正运行），中止发布${NC}"
-  exit 1
-fi
-echo -e "${GREEN}✅ 全部测试通过 ($total 项)${NC}"
+echo -e "${GREEN}✅ e2e 全部通过${NC}"
 
 echo ""
 echo -e "${YELLOW}=== 2. 提取当前版本 ===${NC}"

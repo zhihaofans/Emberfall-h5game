@@ -1,16 +1,5 @@
 {
-  "name": "gametest",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "puppeteer-core": "^23.11.1"
-  }
+  "name": "emberfall-tests",
+  "private": true,
+  "type": "commonjs"
 }

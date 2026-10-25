@@ -1,0 +1,92 @@
+#!/usr/bin/env node
+// e2e 统一入口：串行跑 puppeteer 用例并汇总。
+//
+// 为什么需要它：原来的用例散在 tests/ 下、由 release.sh 里的 bash 循环调用，
+// 本地与 CI 各写一套容易漂移。这里只留一个入口。
+//
+// 用法：
+//   node tests/run-e2e.mjs            跑发布前白名单（15 个）
+//   node tests/run-e2e.mjs --all      跑 tests/ 下全部用例
+//   node tests/run-e2e.mjs version.js 只跑指定文件
+//
+// 环境：CHROMIUM_PATH 可指定浏览器（默认 /usr/bin/chromium）。
+// 退出码：0 = 全绿；1 = 有用例失败或无断言。
+
+import { spawnSync } from 'node:child_process';
+import { readdirSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const TESTS = dirname(fileURLToPath(import.meta.url));
+const TIMEOUT_MS = 180_000;
+
+// 发布前必跑的白名单（与 AGENT.md §8.2 对应）
+const WHITELIST = [
+  'test.js', 'version.js', 'melvor.js', 'regress.js', 'layout.js',
+  'v1100.js', 'v1110.js', 'v1111.js', 'v1120.js', 'v1220.js', 'v1230.js',
+  'v1298.js', 'v1299.js', 'v1300.js', 'v200.js',
+];
+
+const args = process.argv.slice(2);
+let files;
+if (args.includes('--all')) {
+  files = readdirSync(TESTS)
+    .filter((f) => f.endsWith('.js') && !['run-e2e.mjs', '_env.js'].includes(f))
+    .sort();
+} else if (args.length) {
+  files = args;
+} else {
+  files = WHITELIST;
+}
+
+const results = [];
+let totalPass = 0;
+let totalFail = 0;
+
+console.log(`e2e · ${files.length} 个用例文件 · CHROMIUM_PATH=${process.env.CHROMIUM_PATH || '(默认 /usr/bin/chromium)'}\n`);
+
+for (const f of files) {
+  const t0 = Date.now();
+  const r = spawnSync(process.execPath, [f], {
+    cwd: TESTS,
+    encoding: 'utf8',
+    timeout: TIMEOUT_MS,
+    env: process.env,
+  });
+  const out = (r.stdout || '') + (r.stderr || '');
+  const pass = (out.match(/✅/g) || []).length;
+  const fail = (out.match(/❌/g) || []).length;
+  const ms = Date.now() - t0;
+
+  // 进程没跑起来（缺依赖 / 浏览器崩）也要算失败，不能只看 ✅/❌ 计数
+  const crashed = r.error || r.signal || (r.status !== 0 && fail === 0);
+  totalPass += pass;
+  totalFail += fail;
+
+  const status = crashed && fail === 0 ? '💥' : fail ? '❌' : '✅';
+  console.log(`${status} ${f.padEnd(14)} ${String(pass).padStart(3)} 通过 / ${String(fail).padStart(2)} 失败  ${ms}ms`);
+
+  if (crashed && fail === 0) {
+    const tail = out.trim().split('\n').slice(-3).join(' | ');
+    console.log(`     运行异常：${r.error ? r.error.message : r.signal || 'exit ' + r.status}${tail ? ' · ' + tail : ''}`);
+    results.push({ f, crashed: true });
+  } else if (fail) {
+    for (const line of out.split('\n').filter((l) => l.includes('❌')).slice(0, 5)) {
+      console.log('     ' + line.trim());
+    }
+    results.push({ f, crashed: false });
+  }
+}
+
+const bad = results.length;
+console.log('');
+if (!totalPass && !totalFail) {
+  console.log('结果：0 项断言被执行（用例没有真正运行，多半是浏览器不可用）');
+  process.exit(1);
+}
+if (bad) {
+  console.log(`结果：${bad}/${files.length} 个文件有问题 · 共 ${totalPass} 通过 / ${totalFail} 失败`);
+  process.exit(1);
+}
+console.log(`结果：全部通过 · ${files.length} 个文件 / ${totalPass} 项断言`);
+process.exit(0);

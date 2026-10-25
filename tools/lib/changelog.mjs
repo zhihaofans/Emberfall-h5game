@@ -26,11 +26,12 @@ export function parseChangelogInline(src) {
   const e = src.indexOf('\n];', s);
   const block = src.slice(s, e);
   const out = [];
-  const re = /\{ver:'([^']+)', date:'([^']+)', title:'([^']*)', notes:\[([\s\S]*?)\]\}/g;
+  const un = (t) => t.replace(/\\(['\\])/g, '$1'); // 与 renderChangelogJs 的转义对称
+  const re = /\{ver:'([^']+)', date:'([^']+)', title:'((?:[^'\\]|\\.)*)', notes:\[([\s\S]*?)\]\}/g;
   let m;
   while ((m = re.exec(block))) {
-    const notes = [...m[4].matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((x) => x[1].replace(/\\'/g, "'"));
-    out.push({ ver: m[1], date: m[2], title: m[3], notes });
+    const notes = [...m[4].matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((x) => un(x[1]));
+    out.push({ ver: m[1], date: m[2], title: un(m[3]), notes });
   }
   return out;
 }

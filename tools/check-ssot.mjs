@@ -7,10 +7,11 @@
 // 用法：node tools/check-ssot.mjs
 // 退出码：0 = 全部一致；1 = 有失败项（会打印具体差异）
 
-import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseChangelogMd, parseChangelogInline } from './lib/changelog.mjs';
+import { objectBody, topLevelKeys, flatKeys } from './lib/source.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
@@ -34,42 +35,7 @@ function warn(name, detail) {
   console.log(`  ⚠️  ${name}${detail ? ' — ' + detail : ''}`);
 }
 
-/* ---------- 通用解析工具 ---------- */
-
-// 从源码里取出 `const NAME = {` 到配对 `}` 之间的对象体（不解析嵌套内容，只做括号配对）
-function objectBody(src, name) {
-  const start = src.indexOf(`const ${name} = {`);
-  if (start < 0) return null;
-  const open = src.indexOf('{', start);
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}') {
-      depth--;
-      if (depth === 0) return src.slice(open + 1, i);
-    }
-  }
-  return null;
-}
-
-// 取对象体的顶层键名（用于资源表这类"键为资源 id"的扁平表）
-function topLevelKeys(body) {
-  const keys = [];
-  let depth = 0;
-  for (let i = 0; i < body.length; i++) {
-    const c = body[i];
-    if (c === '{' || c === '[') depth++;
-    else if (c === '}' || c === ']') depth--;
-    else if (depth === 0) {
-      const m = /^([A-Za-z_][A-Za-z0-9_]*)\s*:/.exec(body.slice(i));
-      if (m && (i === 0 || /[\s,{]/.test(body[i - 1]))) {
-        keys.push(m[1]);
-        i += m[0].length - 1;
-      }
-    }
-  }
-  return keys;
-}
+/* ---------- 通用解析工具：见 tools/lib/source.mjs（与单测共用） ---------- */
 
 // 把 md 里的 CHANGELOG 解成 [{ver,date,title,notes[]}] —— 实现在 tools/lib/changelog.mjs（与 sync-meta 共用）
 
@@ -211,9 +177,8 @@ function checkResources() {
   const nsRes = nsStart < 0 ? null : /res:\{([^}]*)\}/.exec(html.slice(nsStart));
   if (!ngRes || !nsRes) return bad('找不到 newGame()/normalizeState() 的 res 默认值');
 
-  const keysOfFlat = (body) => new Set([...body.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*:/g)].map((m) => m[1]));
-  const kNg = keysOfFlat(ngRes[1]);
-  const kNs = keysOfFlat(nsRes[1]);
+  const kNg = flatKeys(ngRes[1]);
+  const kNs = flatKeys(nsRes[1]);
 
   const sets = [
     ['RES_PRICE', kPrices],

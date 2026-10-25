@@ -51,7 +51,9 @@ function ok(c, n) { if (c) { pass++; console.log('✅ ' + n); } else { fail++; c
 
   const mf = JSON.parse(fs.readFileSync(require('./_env').ROOT + '/manifest.json', 'utf8'));
   ok(mf.name && mf.short_name, 'manifest 有 name / short_name');
-  ok(mf.start_url === './survival.html', 'start_url 是相对路径：' + mf.start_url);
+  // 2026-10-25：start_url 从 ./survival.html 改成 ./index.html —— 构建产物 dist/ 里没有 survival.html，
+  // 而根目录的 index.html 会 redirect 到 survival.html，两种形态都能启动。
+  ok(mf.start_url === './index.html', 'start_url 是相对路径：' + mf.start_url);
   ok(mf.scope === './', 'scope 是相对路径：' + mf.scope);
   ok(mf.display === 'standalone', 'display = standalone');
   ok(mf.theme_color && mf.background_color, 'theme_color / background_color 齐全');

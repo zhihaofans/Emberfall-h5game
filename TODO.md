@@ -26,6 +26,7 @@
 - 重构首发版本 **3.0.0**；`BUILD_CODE` 从 **103** 继续单调递增，不跳号、不随 MAJOR 重置。
 - MAJOR 的判定统一为「不兼容的重大重构（运行形态 / 工程结构变化）或存档不兼容」——`survival.html` 的 `VERSION_RULES` 与本文档 §0.3 已改成同一句话。
 - `CHANGELOG.md`（仓库根，75 版 / 216 条）是完整历史归档，当前与游戏内 `CHANGELOG` 数组**逐条一致**；重构后由 `tools/stamp.mjs` 从该文件生成内联数据，避免两份手工同步。
+- 游戏内显示的版本号旁边还要带 **git hash**（排查线上到底是哪个提交），由构建注入、不手写 —— 见 §5.8。
 
 ---
 
@@ -63,16 +64,14 @@
 - **验收**：`npm run build` 产出 `dist/`；`python3 -m http.server -d dist` 打开能进游戏壳、`console` 0 报错；`dist/` 里图标与启动图路径全部可解析；断网重载仍可玩（SW 生效）。
 - **成本**：小。**依赖**：D2、D3。
 
-### 2.2 先搬存档层（`core/save.ts`）
+### 2.2 先搬存档层（`core/save.mjs`）—— ✅ 已完成（2026-10-25）
 
-- **为什么**：存档是全项目最高风险点（静默丢字段不会报错）。先搬它，才能在后续每一步都验证「老档还能读」。
-- **怎么做**：把 `survival.html` 4900–5400 段的 `newGame / normalizeState / migrateFrom / serialize / parseSavePayload / settleOffline / hasSave / clearSave` 抽成纯函数，状态作为参数进出（**不读全局 `G`、不碰 `localStorage`**，存储访问抽到 `core/storage.ts`）。
-- **验收**：
-  - 单测：`写入 → 反序列化 → 逐字段深比较`（含 `res`/`items`/`stats`/`skills`/`bestiary`/`milestones` 等嵌套结构）
-  - 用一份 **fmt 11 真实存档**（脱敏后作 fixture）跑迁移，字段逐一相等
-  - `normalizeState` 幂等：跑两遍结果逐字节一致
-  - 未知字段不丢：塞一个未来字段进去，规范化后仍在（或按约定显式丢弃并记录）
-- **成本**：中。**风险**：高，必须第一个做。
+- 产物：`src/core/save.mjs`（纯函数：`createNewState` / `normalizeState` / `migrateFrom` / `legacyBestiary` / `serialize` / `parseSavePayload`）+ `src/core/types.mjs`（JSDoc 类型）
+- 单测 `tests/unit/save.test.mjs` **13 条**：默认值 / 幂等 / clamp / 一次性补偿 / 迁移链（fmt1→11）/ 往返 / 非法输入 / 图鉴推断 / lastSeen / **未来字段不被吞**
+- **两处真 bug：新实现已修，旧的 `survival.html` 暂不改，随重构整体切换时一并生效**（2026-10-25 决定）
+  1. `lastSeen | 0` 把 13 位时间戳截成 32 位负数 → 每次载入都白拿 8 小时离线收益
+  2. `newGame()` 漏写 `__v1274_comp` → 新玩家第一次读档白拿 1 图腾 + 2 抽奖券
+- 迁移策略：新模块与旧实现并存，靠单测保证行为一致；等 P2 表现层搬完，整体切到 `src/` 后再删旧代码
 
 ### 2.3 定测试基建 —— ✅ 已完成（2026-10-25）
 
@@ -146,6 +145,7 @@
 | 5.5 | CI（GitHub Actions） | typecheck → 单测 → build → e2e → deploy，全绿才发 |
 | 5.6 | e2e 只留关键路径 | 启动、存档往返、离线重载、安装提示、战斗一场、Boss 一场 |
 | 5.7 | 文档同步 | `AGENT.md` 代码地图按新目录重写；`CHANGELOG` 补 3.0.0；`README` 加开发命令 |
+| 5.8 | **版本号旁显示 git hash**：`tools/build.mjs` 读 `git rev-parse --short=7 HEAD`（工作区脏则加 `-dirty`，取不到写 `unknown`），注入 `version.json` 与构建产物；游戏内 4 处版本号文案（启动日志 / 主菜单 / 死亡页 / 版本规则面板）统一从 `core/version` 读取，**不允许各处手拼** | 显示值与 `git rev-parse --short HEAD` 一致；有未提交改动显示 `-dirty`；无 git 环境（解压的 zip）显示 `unknown` 且不报错；`check-ssot` 增加「产物 sha ↔ 当前 HEAD」校验 |
 
 ---
 

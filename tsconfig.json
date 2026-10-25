@@ -11,6 +11,8 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "allowJs": true,
+    "checkJs": true,
     "noEmit": true,
     "types": ["vite/client"]
   },

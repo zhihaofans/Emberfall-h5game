@@ -17,6 +17,13 @@ import {
   doChop, doHunt, doFish, doSmelt, doMineOre, doSmeltOre,
   doFetch, doCook, doBoil, doEat, doDrink, doSleep, doHeal,
 } from './core/actions.mjs';
+import { ZONES } from './core/data/zones.mjs';
+import { exploreZone, rollExploreEvent } from './core/explore.mjs';
+import { resolveOption, lostOpts } from './core/explore-events.mjs';
+import { pickMonster, fightRound, fightBoss, flee, bossFlee, bait, bossStats, pharaohStats } from './core/combat.mjs';
+import { checkMilestone } from './core/achievements.mjs';
+import { pickMerchantGoods, canTrade, buyMerchant, doraInfo, doraGoods, DORA_GIFTS, canGift, giftDora, canBuyDoraGood, buyDoraGood, addDoraFav } from './core/npc.mjs';
+import { markEncounter, wikiProgress } from './core/wiki.mjs';
 
 // 版本号由构建注入（唯一源：仓库根 version.json）
 const APP_VERSION = __APP_VERSION__;
@@ -30,6 +37,13 @@ let G = null;
 /** @type {{text: string, cls: string}[]} */
 const logBuffer = [];
 let autoTimer = null;
+let curZone = 'forest';
+/** @type {any} */
+let pendingEvent = null;
+/** @type {any[]} */
+let eventOpts = [];
+/** @type {any} */
+let pendingCombat = null;
 
 const el = (id) => document.getElementById(id);
 const name = (k) => NAMES[k] || k;
@@ -130,8 +144,26 @@ function renderActive() {
 
 export function renderAll() {
   renderStatus();
+  renderZone();
   renderActions();
   renderActive();
+}
+
+function renderZone() {
+  const box = el('zonebar');
+  if (!box) return;
+  const parts = [];
+  for (const k in ZONES) {
+    const z = ZONES[k];
+    const unlockDay = z.unlockDay || 1;
+    if (G.day < unlockDay) {
+      parts.push(`<button class="zonebtn" style="opacity:.4" data-locked="${z.name} 需存活至第 ${unlockDay} 天解锁">🔒${z.name}</button>`);
+      continue;
+    }
+    const on = curZone === k ? ' on' : '';
+    parts.push(`<button class="zonebtn zone-${k}${on}" data-zone="${k}">${z.name}</button>`);
+  }
+  box.innerHTML = parts.join('');
 }
 
 /* ------------------------------ 时间与死亡 ------------------------------ */
@@ -227,6 +259,14 @@ export function doAction(kind) {
 
   payActionCost(G, kind, { adrenaline: (G.adrenalineLeft || 0) > 0 });
 
+  if (kind === 'explore') {
+    doExplore();
+    if (a.time > 0) passTime(a.time);
+    renderAll();
+    save();
+    return;
+  }
+
   const run = RUNNERS[kind];
   const r = run ? run(G) : null;
   if (r && r.refused) {
@@ -273,9 +313,236 @@ export function stopAutoLoop() {
   save();
 }
 
+
+/* ------------------------------ 探索与事件 ------------------------------ */
+
+function doExplore() {
+  const r = exploreZone(G, {
+    zone: curZone,
+    onEvent: () => {
+      const roll = rollExploreEvent(G, curZone);
+      if (roll.kind === 'combat') {
+        const picked = pickMonster(G, { zone: curZone, tierScale: 1 });
+        markEncounter(G, picked);
+        showCombat(picked.monster);
+      } else if (roll.kind === 'boss') {
+        showBoss(false);
+      } else if (roll.kind === 'pharaoh') {
+        showBoss(true);
+      } else if (roll.kind === 'event' && roll.event) {
+        showEvent(roll.event);
+      }
+    },
+  });
+  for (const l of r.logs) log(l.text, l.cls);
+}
+
+function hideEvent() {
+  const mask = el('evmask');
+  mask.classList.remove('show');
+  el('evwrap').innerHTML = '';
+  pendingEvent = null;
+  pendingCombat = null;
+  eventOpts = [];
+}
+
+function renderEvent(title, text, opts) {
+  eventOpts = opts;
+  const items = opts.map((o, i) => {
+    const dis = o.disabled ? 'disabled style="opacity:.45;cursor:not-allowed"' : '';
+    return `<button class="evbtn" data-idx="${i}" ${dis}>${o.label}<span class="d">${o.d || ''}</span></button>`;
+  }).join('');
+  el('evwrap').innerHTML = `<h4>⚡ ${title}</h4><div class="evbox"><div class="evt">${text}</div>${items}</div>`;
+  el('evmask').classList.add('show');
+}
+
+function showEvent(ev) {
+  pendingEvent = { ...ev };
+  G.stats.events++;
+  if (ev.id === 'lost') { renderEvent(ev.title, ev.text, lostOpts(G)); save(); return; }
+  if (ev.kind === 'merchant') { showMerchant(); save(); return; }
+  if (ev.kind === 'dora') { showDoraMenu(); return; }
+  renderEvent(ev.title, ev.text, ev.opts);
+  save();
+}
+
+function showMerchant() {
+  const goods = pickMerchantGoods(G, 4);
+  const opts = goods.map((g) => ({
+    label: g.label,
+    d: `${g.blurb}（${canTrade(G, g) ? '可交易' : '材料/金币不足'}）`,
+    disabled: !canTrade(G, g),
+    _good: g,
+  }));
+  opts.push({ label: '不换了', d: '挥手告别', effects: [] });
+  renderEvent('流浪商人', '一个兜帽人推着破车出现：「换点物资吗？我这有 4 样货，包你满意。」', opts);
+}
+
+function showDoraMenu() {
+  const d = doraInfo(G);
+  el('evwrap').innerHTML = `
+    <h4>🤖 猫耳机器人</h4>
+    <div class="evbox">
+      <div class="evt">好感度：${d.name}（${d.fav}${d.nextNeed > 0 ? ` / 下一级还需 ${d.nextNeed}` : ' / 已满级'}）</div>
+      <button class="evbtn" data-dora="gift">🤝 送礼<span class="d">选个礼物提升好感度</span></button>
+      <button class="evbtn" data-dora="pocket">🎒 万能口袋<span class="d">按好感度解锁</span></button>
+      <button class="evbtn" data-dora="chat">💬 闲聊<span class="d">听它讲蓝胖子前辈的故事（好感 +1）</span></button>
+      <button class="evbtn" data-dora="leave">👋 离开<span class="d">下次再来找它</span></button>
+    </div>`;
+  el('evmask').classList.add('show');
+  save();
+}
+
+function showDoraGifts() {
+  const opts = DORA_GIFTS.map((g, i) => ({
+    label: g.label,
+    d: `${g.blurb} · 好感 +${g.fav}`,
+    disabled: !canGift(G, i),
+    _gift: i,
+  }));
+  opts.push({ label: '⬆ 返回', d: '回到主菜单', _back: true });
+  renderEvent('送礼', '选个礼物送给猫耳机器人：', opts);
+}
+
+function showDoraPocket() {
+  const goods = doraGoods(G);
+  const opts = goods.map((g) => {
+    const costTxt = [
+      g.cost > 0 ? `💰${g.cost}` : '',
+      ...Object.keys(g.give || {}).map((k) => `${name(k)}×${g.give[k]}`),
+    ].filter(Boolean).join(' + ');
+    const getTxt = Object.keys(g.get || {}).map((k) => `${name(k)}×${g.get[k]}`).join('+');
+    return {
+      label: g.name,
+      d: `${g.blurb}${costTxt ? `（${costTxt}${getTxt ? ' → ' + getTxt : ''}）` : ''}`,
+      disabled: !canBuyDoraGood(G, g),
+      _doraGood: g,
+    };
+  });
+  if (!opts.length) opts.push({ label: '（暂无商品）', d: '好感度不足', disabled: true });
+  opts.push({ label: '⬆ 返回', d: '回到主菜单', _back: true });
+  renderEvent('万能口袋', doraInfo(G).max ? '它把整个口袋翻给你看！' : '当前好感度可购买的物品：', opts);
+}
+
+/** 结算一个事件选项 */
+function resolveEventIdx(i) {
+  const opt = eventOpts[i];
+  if (!opt) return;
+
+  // NPC 相关
+  if (opt._back) { hideEvent(); showDoraMenu(); return; }
+  if (opt._gift !== undefined) {
+    hideEvent();
+    const r = giftDora(G, opt._gift);
+    for (const l of r.logs) log(l.text, l.cls);
+    for (const id of r.achievements || []) for (const l of checkMilestone(G, id).logs) log(l.text, l.cls);
+    renderAll(); save(); checkDeath();
+    return;
+  }
+  if (opt._doraGood) {
+    hideEvent();
+    const r = buyDoraGood(G, opt._doraGood);
+    if (r.refused) log(r.refused, 'warn');
+    for (const l of r.logs) log(l.text, l.cls);
+    for (const id of r.achievements || []) for (const l of checkMilestone(G, id).logs) log(l.text, l.cls);
+    renderAll(); save(); checkDeath();
+    return;
+  }
+  if (opt._good) {
+    hideEvent();
+    const r = buyMerchant(G, opt._good);
+    if (r.refused) log(r.refused, 'warn');
+    for (const l of r.logs) log(l.text, l.cls);
+    renderAll(); save(); checkDeath();
+    return;
+  }
+
+  // 普通事件选项
+  const ev = pendingEvent;
+  const opts = eventOpts;
+  hideEvent();
+  const r = resolveOption(G, { ...(ev || {}), opts }, i);
+  if (r.refused) log(r.refused, 'warn');
+  for (const l of r.logs) log(l.text, l.cls);
+  for (const id of r.achievements || []) for (const l of checkMilestone(G, id).logs) log(l.text, l.cls);
+
+  if (r.combat && r.combat.length) {
+    const c = r.combat[0] || {};
+    const picked = pickMonster(G, { zone: curZone, tierScale: 1, forceBeasts: !!c.forceBeasts });
+    markEncounter(G, picked);
+    showCombat(picked.monster);
+  }
+  renderAll(); save(); checkDeath();
+}
+
+/* ------------------------------ 战斗弹窗 ------------------------------ */
+
+function showCombat(monster) {
+  pendingCombat = { monster, boss: false, isPharaoh: false };
+  el('evwrap').innerHTML = `
+    <h4>⚔️ 遭遇 ${monster.name}！</h4>
+    <div class="evbox">
+      <div class="evt">${monster.name}盯上了你。（❤️${monster.hp} ⚔️${monster.atk}）</div>
+      <button class="evbtn" data-combat="fight">迎战<span class="d">拼一把</span></button>
+      <button class="evbtn" data-combat="flee">逃跑<span class="d">消耗精力 · 有风险</span></button>
+      ${G.res.food > 0 ? '<button class="evbtn" data-combat="bait">扔食物引开<span class="d">生食 -2</span></button>' : ''}
+    </div>`;
+  el('evmask').classList.add('show');
+}
+
+function showBoss(isPharaoh) {
+  const st = isPharaoh ? pharaohStats(G) : bossStats(G);
+  pendingCombat = { monster: { ...st }, boss: true, isPharaoh };
+  el('evwrap').innerHTML = `
+    <h4>🐲 ${st.name}</h4>
+    <div class="evbox">
+      <div class="evt">空气凝滞了——${st.name}挡在面前！（❤️${st.hp} ⚔️${st.atk}）</div>
+      <button class="evbtn" data-combat="fight">迎战<span class="d">多回合对拼，直到一方倒下</span></button>
+      <button class="evbtn" data-combat="flee">悄悄退走<span class="d">精力 -15 · 80% 脱身</span></button>
+    </div>`;
+  el('evmask').classList.add('show');
+}
+
+function doCombatAction(act) {
+  const c = pendingCombat;
+  hideEvent();
+  if (!c) return;
+
+  let r = null;
+  if (c.boss) {
+    if (act === 'fight') r = fightBoss(G, { monster: c.monster, isPharaoh: c.isPharaoh });
+    else if (act === 'flee') r = bossFlee(G);
+  } else {
+    if (act === 'fight') r = fightRound(G, c.monster);
+    else if (act === 'flee') r = flee(G, c.monster);
+    else if (act === 'bait') r = bait(G, c.monster);
+  }
+  if (!r) return;
+  for (const l of r.logs) log(l.text, l.cls);
+  for (const id of r.achievements || []) for (const l of checkMilestone(G, id).logs) log(l.text, l.cls);
+  renderAll();
+  save();
+  checkDeath();
+}
+
 /* ------------------------------ 启动 ------------------------------ */
 
+/**
+ * 把运行时错误显示到日志区：迁移期没有调试台时，截图就能定位问题。
+ * 只做展示，不吞异常（仍然抛回控制台）。
+ */
+function installErrorHooks() {
+  window.addEventListener('error', (e) => {
+    log(`💥 脚本错误：${e.message}（${e.filename || '?'}:${e.lineno || 0}）`, 'bad');
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    const r = e.reason;
+    log(`💥 未处理的异常：${(r && r.message) || r}`, 'bad');
+  });
+}
+
 export function boot() {
+  installErrorHooks();
   G = loadSave() || createNewState();
 
   logBuffer.length = 0;
@@ -289,6 +556,42 @@ export function boot() {
     if (!kind) return;
     if (ACTIONS[kind] && ACTIONS[kind].auto) toggleAuto(kind);
     else doAction(kind);
+  });
+
+  el('zonebar')?.addEventListener('click', (e) => {
+    const btn = /** @type {HTMLElement} */ (e.target).closest('.zonebtn');
+    if (!btn) return;
+    if (btn.dataset.locked) { toast('🔒 ' + btn.dataset.locked); return; }
+    if (btn.dataset.zone) {
+      curZone = btn.dataset.zone;
+      log(`📍 前往${ZONES[curZone].name}。`, 'sys');
+      renderAll();
+    }
+  });
+
+  el('evwrap')?.addEventListener('click', (e) => {
+    const target = /** @type {HTMLElement} */ (e.target);
+    const combatBtn = target.closest('[data-combat]');
+    if (combatBtn) { doCombatAction(combatBtn.dataset.combat); return; }
+
+    const doraBtn = target.closest('[data-dora]');
+    if (doraBtn) {
+      const act = doraBtn.dataset.dora;
+      if (act === 'gift') showDoraGifts();
+      else if (act === 'pocket') showDoraPocket();
+      else if (act === 'chat') {
+        hideEvent();
+        const r = addDoraFav(G, 1);
+        for (const l of r.logs) log(l.text, l.cls);
+        log('🤖 「前辈的百宝袋……我可差远了。」', 'info');
+        for (const id of r.achievements || []) for (const l of checkMilestone(G, id).logs) log(l.text, l.cls);
+        renderAll(); save();
+      } else hideEvent();
+      return;
+    }
+
+    const optBtn = target.closest('[data-idx]');
+    if (optBtn) resolveEventIdx(Number(optBtn.dataset.idx));
   });
 
   el('activeStop')?.addEventListener('click', stopAutoLoop);

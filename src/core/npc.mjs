@@ -8,6 +8,9 @@ import { RECIPES } from './data/recipes.mjs';
 import { addRes, spend } from './state.mjs';
 import { resNames } from './data/resources.mjs';
 
+// 送礼表给 UI 直接渲染用（避免 UI 层去 import data/）
+export { DORA_GIFTS };
+
 /** @typedef {{text: string, cls: string}} LogEntry */
 
 /**

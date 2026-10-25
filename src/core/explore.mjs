@@ -153,3 +153,39 @@ export function rollNightEvent(state, opts = {}) {
   }
   return { logs, achievements };
 }
+
+/**
+ * 探索时的"接着发生什么"：先判 Boss，再判遇怪，最后抽事件。
+ * 对应 survival.html 的 rollExploreEvent 前半段（UI 与弹窗在表现层）。
+ *
+ * @param {any} state
+ * @param {string} zoneKey
+ * @param {{ctx?: any}} [opts]
+ * @returns {{kind: 'boss'|'pharaoh'|'combat'|'event'|'none', event?: any}}
+ */
+export function rollExploreEvent(state, zoneKey, opts = {}) {
+  const { random } = rngOf(opts.ctx);
+  const z = ZONES[zoneKey];
+  if (!z) return { kind: 'none' };
+
+  // 废土兽王：30 天后首次 6%，击杀过之后 4%，45 天 CD
+  const bk = state.stats.bossKills || 0;
+  if (state.day >= 30 && random() < (bk > 0 ? 0.04 : 0.06)
+    && (bk === 0 || state.day >= 45 + state.stats.bossFirstAt)) {
+    return { kind: 'boss' };
+  }
+
+  // 法老：25 天后在金字塔 5%，最多 3 次，击败后 30 天 CD
+  if (zoneKey === 'pyramid' && state.day >= 25) {
+    const pk = state.stats.pharaohKills || 0;
+    const cd = pk > 0 && state.stats.pharaohFirstAt ? state.stats.pharaohFirstAt + 30 : 0;
+    if (pk < 3 && random() < 0.05 && (pk === 0 || state.day >= cd)) return { kind: 'pharaoh' };
+  }
+
+  // 遇怪
+  if (random() < z.danger) return { kind: 'combat' };
+
+  // 事件（按权重、限本区域）
+  const ev = pickExploreEvent(zoneKey, random);
+  return ev ? { kind: 'event', event: ev } : { kind: 'none' };
+}

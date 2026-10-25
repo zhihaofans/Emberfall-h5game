@@ -105,7 +105,7 @@
 
 | # | 目标模块 | 从 `survival.html` 搬什么 | 验收 |
 |---|---|---|---|
-| 3.1 | `core/data/*.ts`（按域拆 8–10 个文件） | 3080–3610 数据表：技能/区域/行动/价格/商店/幸运块/配方/强化/附魔/资源名/获取途径/怪物/NPC/装备/商人；3615–3860 事件表；4834–4880 成就文案 | **数值快照测试** + 与旧文件逐项 diff 脚本（迁移期防抄错数） |
+| 3.1 | `core/data/*.mjs`（按域拆 8–10 个文件） | 3080–3610 数据表：**已完成** `resources.mjs`（23 条）/ `skills.mjs`（7 技能）/ `zones.mjs`（5 区域）/ `actions.mjs`（14 行动）；**待搬**：商店 / 幸运块 / 配方 / 强化 / 附魔 / 怪物 / NPC / 装备 / 商人 / 事件 / 成就 | **数值快照测试** + 与旧文件逐项 diff（已建立对拍模式：15 条零漂移断言 + 交叉引用校验） |
 | 3.2 | `core/time.ts` | `passTime / nextDay / tick / applyPassive / checkDeath`、季节天气 | 单测：跨日结算、饥饿/口渴掉血、死亡与图腾复活、睡眠被偷 |
 | 3.3 | `core/actions.ts` | `doAction / startAuto / stopAuto / gameTick / onActionBtn` 的结算部分 | 单测：精力扣减、材料不足不扣精力（历史坑 #4）、自动循环停止条件 |
 | 3.4 | `core/craft.ts` | `doCraft / craftArmor / upgradeItem / upgradeCost / recipeVisible / hasRes / spend / addRes` | 单测：22 配方解锁链、装备材质链、强化 10 级后额外消耗 |

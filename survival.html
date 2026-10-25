@@ -2689,12 +2689,12 @@ window.BUILD_CODE = BUILD_CODE;
 window.SAVE_FMT = null; // 下方定义后赋值
 
 /* 语义化版本控制规则（SemVer，参考 https://semver.org/lang/zh-CN/）
-   - 主版本(MAJOR)：不兼容的重大重构 / 存档格式不兼容 → 如 2.0.0
+   - 主版本(MAJOR)：不兼容的重大重构（运行形态 / 工程结构变化）或存档格式不兼容 → 如 3.0.0
    - 次版本(MINOR)：向后兼容的新功能 → 如 1.4.0
    - 修订号(PATCH)：向后兼容的缺陷修复 → 如 1.3.1
-   下个版本起按此规律递增：加功能 +0.1.0，修bug +0.0.1，重大重构 +1.0.0 */
+   下个版本起按此规律递增：加功能 +0.1.0，修bug +0.0.1，重大重构 +1.0.0；BUILD_CODE 与版本号解耦，每次发布单调 +1（下一个是 103），不随 MAJOR 重置。 */
 const VERSION_RULES = [
-  ['MAJOR · 主版本', '不兼容的重大重构 / 存档不兼容', '如 2.0.0'],
+  ['MAJOR · 主版本', '不兼容的重大重构（运行形态 / 工程结构）或存档不兼容', '如 3.0.0'],
   ['MINOR · 次版本', '新增功能（向后兼容）', '如 1.4.0'],
   ['PATCH · 修订号', '缺陷修复（向后兼容）', '如 1.3.1'],
 ];
@@ -3080,8 +3080,8 @@ const WEATHERS = ['晴','阴','小雨','暴雨','暴风雪'];
 const SKILLS = ['chop','mine','hunt','fish','explore','cook','combat'];
 const SKILL_NAMES = {chop:'砍伐', mine:'采掘', hunt:'狩猎', fish:'渔猎', explore:'探索', cook:'烹饪', combat:'战斗'};
 const SKILL_DESC = {
-  chop:'每级 砍柴产量 +8%', mine:'每级 采石产量 +8%',
-  hunt:'每级 狩猎成功率 +4%', fish:'每级 捕鱼成功率 +4%',
+  chop:'每级 砍柴产量 +8%', mine:'每级 采石产量 +5%',
+  hunt:'每级 狩猎成功率 +4%', fish:'每级 捕鱼成功率 +1.2%',
   explore:'每级 探索收获 +8%', cook:'每级 烹饪产出 +10%',
   combat:'每级 武器伤害 +5%',
 };
@@ -3187,10 +3187,10 @@ const RECIPES = {
 };
 /* 强化系统：每类装备可强化 15 级（11-15 级需要符石+合金） */
 const UPGRADES = {
-  weapon:{name:'强化武器', desc:'每级 武器伤害 +12%', base:{metal:4, leather:1}, need:'steel', max:15},
-  axe:   {name:'强化斧头', desc:'每级 砍柴产量 +12%', base:{metal:2, wood:2},    need:'ironAxe', max:15},
-  rod:   {name:'强化鱼竿', desc:'每级 捕鱼成功率 +7%',base:{metal:1},            need:'rod', max:15},
-  trap:  {name:'强化捕兽夹',desc:'每级 捕兽夹产量 +18%',base:{metal:1},          need:'trap', max:15},
+  weapon:{name:'强化武器', desc:'每级 武器伤害 +10%', base:{metal:4, leather:1}, need:'steel', max:15},
+  axe:   {name:'强化斧头', desc:'每级 砍柴产量 +10%', base:{metal:2, wood:2},    need:'ironAxe', max:15},
+  rod:   {name:'强化鱼竿', desc:'每级 捕鱼成功率 +6%',base:{metal:1},            need:'rod', max:15},
+  trap:  {name:'强化捕兽夹',desc:'每级 捕兽夹产量 +15%',base:{metal:1},          need:'trap', max:15},
 };
 /* 计算升级到 lv+1 的总成本（11-15 级额外需要符文/合金） */
 function upgradeCost(key, lv){
@@ -3256,7 +3256,7 @@ const GET_WHERE = {
   leather:'🎯 狩猎 · ⚔️ 战斗掉落 · 🏞 河边探索（水獭）· 🛒 黑市',
   alloy:'⚒ 熔炼（需铁匠炉，2 金属→1 合金）· 🔥 大师炉加成（Tier4）· 🎣 钓鱼宝藏（铁箱）',
   luck:'🎲 黑市购买 · 🗺 探索掉落（3%）· 👹 Boss 战利品 · 🎣 钓鱼宝藏',
-  totem:'🎲 幸运方块稀有掉落 · 👹 兽王 40% 掉落（唯一获取途径）',
+  totem:'🎲 幸运方块稀有掉落 · 👹 兽王 40% 掉落 · 🛒 黑市/流浪商人 500 金 · 🤖 机器猫（好感 3 级）',
   adrenaline:'👹 兽王 30% 掉落 · 🎲 幸运方块稀有掉落 · 🛒 流浪商人神秘商品（8合金+3符文）',
   rune:'🏚 废墟/⛰ 山丘/🏜金字塔探索（5%）· 👹 兽王战利品 · 🧟 金字塔木乃伊 · 🎣 钓鱼宝藏 · 🛒 流浪商人（高价）',
   copperOre:'⛏ 采矿（45%）· 山丘探索',
@@ -3264,7 +3264,7 @@ const GET_WHERE = {
   goldOre:'⛏ 采矿（3%）· 🏜金字塔探索/事件（黄金密室/沙暴）',
   copper:'🔥 炼锭（铁匠炉，铜矿石→铜锭）',
   silver:'🔥 炼锭（铁匠炉，银矿石→银锭）',
-  gold:'🔥 炼锭（铁匠炉，金矿石→金锭）',
+  gold:'🔥 炼锭（铁匠炉，金矿石→金锭）', expPotion:'🛒 黑市 300 金 · 🛒 流浪商人 300 金', luckyDraw:'🛒 黑市 800 金（×5 则 3500）· 🛒 流浪商人 800 / 1500 金 · 🤖 机器猫（好感 2 级 500 金+合金 5 / 5 级 1800 金+合金 10）', lifePotion:'🛒 黑市 200 金 · 🛒 流浪商人 200 金 · 🤖 机器猫（好感 2 级，300 金）；游戏内无制作配方',
 };
 /* 附魔说明（Wiki 用） */
 const ENCHANT_INFO = '🔮 附魔台（金属15+皮革8+符石4，需铁匠炉）：🗡锋利=武器伤害+10%/级 · 🛡保护=受击-8%/级 · ⚒效率=采集+8%/级。附魔上限=附魔台等级（可升 5 级）';
@@ -6292,7 +6292,7 @@ if(window.__ebhBooting !== false){
    PWA 能力层（v2.0.0）
    ------------------------------------------------------------
    · 安装引导：安卓 beforeinstallprompt + 菜单入口 + iOS 手动提示
-   · 离线：SW 缓存 app shell（file:// 下不注册，游戏照常可用）
+   · 离线：SW 缓存 app shell（file:// 不属于支持场景，仅作防御：不注册、不抛错）
    · 更新：SW updatefound / controllerchange 提示 + 切前台比对 version.json
    · 存档安全：申请持久化存储，降低被浏览器清理的概率
    ============================================================ */
@@ -6396,7 +6396,7 @@ async function pwaCheckVersion(){
     if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
   }catch(e){}
 
-  /* Service Worker 只在 https / localhost 注册（file:// 直接打开照常玩） */
+  /* Service Worker 只在 https / localhost 注册（file:// 属防御分支：不注册、不抛错） */
   const canSW = 'serviceWorker' in navigator
     && (/^https:$/.test(location.protocol) || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname));
   if(!canSW) return;

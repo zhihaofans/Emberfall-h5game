@@ -10,16 +10,16 @@
 
 | 维度 | 现在 | 目标（对齐 Vale Farm） |
 |---|---|---|
-| 形态 | 单个 `survival.html`，HTML+CSS+JS 全内联 | `src/` 分模块源码 → 构建出**单文件产物**（形态不变） |
+| 形态 | 单个 `survival.html`，HTML+CSS+JS 全内联 | `src/` 分模块源码 → 构建出 `dist/`（多文件 + PWA 可部署） |
 | 语言 | 原生 JS，无类型 | TypeScript `strict`，`tsc --noEmit` 把关 |
 | 分层 | 无。渲染与逻辑混在同一作用域，靠行号分区 | `core/` 纯逻辑（不碰 DOM、可单测）+ `ui/` 表现层（只调 core 公开函数） |
-| 构建 | 无 | Vite + `vite-plugin-singlefile`（**沙箱已实测可产出单 HTML**） |
+| 构建 | 无 | Vite 多文件产物（`dist/index.html` + `assets/`），SW 预缓存清单由构建注入 |
 | 测试 | 66 个 puppeteer 用例（依赖单文件结构与全局函数） | `tests/unit/` 纯函数单测 + 少量关键路径 e2e |
 | 版本 | 常量散落在 html 里 | `public/version.json` 唯一数据源，`tools/stamp.mjs` 一次写齐 |
 | 发布 | `release.sh`（bash + git add/commit/tag） | `tools/` 脚本流水线 + CI（typecheck → 单测 → build → e2e → deploy） |
 
-**两条不能破的红线**（迁移期间逐条验收）：老存档能读（fmt 11）· 单文件可分发。
-> `file://` 双击可玩已**不是要求**（2026-10-25 取消）；所有验证一律走本地 http 服务。
+**两条不能破的红线**（迁移期间逐条验收）：老存档能读（fmt 11）· 能构建出可离线部署的 PWA 产物（`dist/`，断网可玩）。
+> 「单文件双击即玩」与 `file://` 支持均已取消（2026-10-25，D2）；验证一律走本地 http 服务或部署后的站点。
 
 ### 版本策略（2026-10-25 定，不再讨论）
 
@@ -33,9 +33,9 @@
 
 | # | 决策 | 选项 | 建议与理由 |
 |---|---|---|---|
-| **D1** | 渲染技术 | A) 继续 DOM/CSS　B) 引入 Phaser | **A**。本作是文字/列表交互，Phaser 没有收益，还会把 435KB 抬到 1.5MB+，并让体积与离线都更脆弱 |
-| **D2** | 产物形态 | A) 单 HTML（singlefile）　B) 多文件 + PWA 部署 | **A 为默认，B 为可选第二产物**。单 HTML 是本作的分发卖点；需要多文件时再出一份，不进第一版 |
-| **D3** | 是否接受开发需要 Node 工具链 | 是 / 否 | 必须接受。否则无法分层与单测。代价：改代码不再「双击即看」，要先 `npm run dev` 或 `build` |
+| **D1** | 渲染技术 | A) 继续 DOM/CSS　B) 引入 Phaser | **已定 A**（2026-10-25）：文字/列表交互，Phaser 无收益且体积翻倍 |
+| **D2** | 产物形态 | A) 单 HTML　B) 多文件 + PWA 部署 | **已定 B**（2026-10-25）：Vite 多文件产物 + PWA 部署（GitHub Pages）；不再要求「一个 HTML 双击即玩」 |
+| **D3** | 是否接受开发需要 Node 工具链 | 是 / 否 | **已定「接受」**（2026-10-25）：改代码走 `npm run dev` / `build` |
 | **D4** | 内联第三方库（LZString + QR，约 2400 行） | A) 转 npm 依赖　B) 放 `src/vendor/` 保留源码　C) 继续内联 | **A**，但 QR 生成/扫描若依赖相机权限，单独评估。理由是自研维护 2400 行第三方代码无意义 |
 | **D5** | 旧存档支持范围 | A) 只保证 fmt 11 起能读　B) 连 fmt 1–10 全链路迁移 | **A**（现有 `migrateFrom` 已覆盖，迁移后仍需逐代测）。B 只在你手上有更老的档要救时才做 |
 | **D6** | 66 个旧 puppeteer 用例 | A) 全部作废重写　B) 抽取断言改成 core 单测　C) 原样保留 | **B**。这些用例的价值在断言（数值、状态、成就），不在 DOM 选择器；能抽的先抽成纯函数测试 |
@@ -45,16 +45,16 @@
 
 ## 2. P0 · 地基（先做，1–2 天）
 
-### 2.1 建工程骨架 —— 产物仍是单个 HTML，本地 http 打开即玩
+### 2.1 建工程骨架 —— Vite 多文件产物，本地 http 打开即玩
 
-- **为什么**：没有骨架，后面每个模块都无处安放；产物必须还能当一个文件分发（`file://` 双击已不再要求，见 §0 红线）。
+- **为什么**：没有骨架，后面每个模块都无处安放；产物要能直接部署成可安装、可离线的 PWA。
 - **怎么做**：
-  1. `package.json`（`type: module`，`build/preview/typecheck/test/stamp/package` 六个脚本）
+  1. `package.json` 补脚本：`dev` / `build` / `preview` / `typecheck`（已有 `ssot`/`unit`/`e2e`/`verify`）
   2. `tsconfig.json`：`strict`、`target ES2021`、`moduleResolution Bundler`、`noEmit`
-  3. `vite.config.ts`：`base: './'`、`build.target es2021`、`viteSingleFile()`、`outDir dist/`（**产物不入库**）
-  4. `src/main.ts` + `src/core/` + `src/ui/` 空壳，`index.html` 只留挂载点
-  5. 构建产物改名落到 `dist/survival.html`（保持现文件名，PWA/图标路径不变）
-- **验收**：`npm run build` 产出的 **单个 HTML 无任何外链**（`grep -c '<script src' = 0`、无 `http` 外部引用）；用 `python3 -m http.server` 起本地服务打开能进游戏壳；`console` 0 报错。
+  3. `vite.config.ts`：`base: './'`（子目录部署可用）、`build.target es2021`、`outDir dist/`、`emptyOutDir`（**产物不入库**）
+  4. `src/main.ts` + `src/core/` + `src/ui/` 空壳；Vite 入口用 `src/index.html`，**根目录现有的 `index.html` / `survival.html` 迁移期不动**（保证随时能回退到当前可玩版本）
+  5. `tools/build.mjs`：vite build 之后把 `icons/` `splash/` `screenshots/` `manifest.json` `sw.js` `version.json` 复制进 `dist/`，并注入 SW 预缓存清单
+- **验收**：`npm run build` 产出 `dist/`；`python3 -m http.server -d dist` 打开能进游戏壳、`console` 0 报错；`dist/` 里图标与启动图路径全部可解析；断网重载仍可玩（SW 生效）。
 - **成本**：小。**依赖**：D2、D3。
 
 ### 2.2 先搬存档层（`core/save.ts`）

@@ -2,6 +2,8 @@
 //
 // 与 survival.html 的 ZONES 逐一对应。res 里每项是 [资源 id, 最少, 最多]。
 
+/** 5 个探索区域（key 即区域 id）
+ * @type {Record<string, {name: string, desc: string, res: [string, number, number][], danger: number, color: string, bg: string, ach: string[], unlockDay: number}>} */
 export const ZONES = {
   "forest": {"name":"🌲森林","desc":"树木与野物","res":[["wood",3,6],["herb",0,3],["food",0,3]],"danger":0.18,"color":"#4a6b48","bg":"#1a2418","ach":["for1","for10","for50"],"unlockDay":1},
   "ruins": {"name":"🏚废墟","desc":"旧世界的残骸","res":[["metal",0,3],["food",0,2],["herb",0,2]],"danger":0.22,"color":"#a07040","bg":"#2a1e10","ach":["rui1","rui10","rui50"],"unlockDay":7},

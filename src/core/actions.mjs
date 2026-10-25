@@ -31,6 +31,7 @@ export function checkAction(state, kind) {
   if (!a) return { ok: false, reason: '', stopAuto: false };
   if (state.dead) return { ok: false, reason: '', stopAuto: false };
 
+  /** @param {string} reason @param {boolean} [stopAuto] */
   const fail = (reason, stopAuto = true) => ({ ok: false, reason, stopAuto });
 
   // —— 工具 / 设施 ——
@@ -479,10 +480,11 @@ export function doFish(state, ctx = {}) {
     return { logs, achievements, xp };
   }
 
+  /** @param {any[]} table */
   const pick = (table) => {
     /** @type {any[]} */
     const pool = [];
-    table.forEach((t) => { for (let i = 0; i < t.w; i++) pool.push(t); });
+    table.forEach((/** @type {any} */ t) => { for (let i = 0; i < t.w; i++) pool.push(t); });
     return pool[Math.floor(random() * pool.length)];
   };
 

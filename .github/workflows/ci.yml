@@ -1,7 +1,7 @@
 name: CI
 
 # 分工（见 AGENT.md §8）：
-#   本地能跑 → npm run verify（SSOT 校验 + 纯函数单测，不需要浏览器）
+#   本地能跑 → npm run verify（SSOT 校验 + 类型检查 + 纯函数单测，不需要浏览器）
 #   本地跑不了 → 本工作流的 e2e（真实 Chromium）
 #
 # 本地沙箱/容器里 Chromium 可能起不来，e2e 一律以本工作流为准。
@@ -31,6 +31,8 @@ jobs:
         run: npm ci
       - name: 单一数据源校验
         run: node tools/check-ssot.mjs
+      - name: 类型检查（tsc --noEmit）
+        run: npm run typecheck
       - name: 单元测试
         run: node --test tests/unit/*.test.mjs
       - name: 构建（存在 build 脚本时才跑，为重构预留）

@@ -37,6 +37,12 @@ import { RECIPES } from './data/recipes.mjs';
  * @property {string} [id]
  * @property {string} [text]
  * @property {string} [cls]
+ * @property {string} [log] 已展开的日志文案
+ * @property {string} [failText] 失败时的提示
+ * @property {any} [if] 分支条件
+ * @property {any[]} [then]
+ * @property {any[]} [else]
+ * @property {any} [rand]
  */
 
 /** @typedef {import('./types.mjs').LogEntry} LogEntry */
@@ -60,12 +66,14 @@ export function applyEffects(state, effects, ctx = {}) {
   /** @type {number|undefined} 当前指令的数值（供 {n} 占位） */
   let nval;
 
-  const fill = (text, nval) =>
+  /** @param {any} text @param {any} [nval] */
+  const fill = (text, nval = undefined) =>
     String(text)
       .replace(/\{res:([A-Za-z_][A-Za-z0-9_]*)\}/g, (_, k) => resNames()[k] ?? k)
       .replace(/\{n\}/g, String(nval ?? ''));
 
   /** 数量支持数字或 { rnd: [a,b] } */
+  /** @param {any} v */
   const amount = (v) =>
     v && typeof v === 'object' && Array.isArray(v.rnd) ? rnd(v.rnd[0], v.rnd[1]) : Number(v) || 0;
 

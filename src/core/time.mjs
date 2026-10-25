@@ -81,6 +81,7 @@ export function applyPassive(state) {
   /** @type {{text: string, cls: string}[]} */
   /** @type {LogEntry[]} */
   const logs = [];
+  /** @param {number} v */
   const clamp = (v) => Math.max(0, Math.min(100, v));
   const adrenalined = (state.adrenalineLeft || 0) > 0;
 

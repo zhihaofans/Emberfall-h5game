@@ -5,7 +5,7 @@
 
 import { EXPLORE_EVENTS } from './data/explore-events.mjs';
 import { applyEffects } from './effects.mjs';
-import { addRes, has, spend, skillLvl } from './state.mjs';
+import { addRes, has, skillLvl } from './state.mjs';
 import { weaponAtk } from './combat.mjs';
 import { resNames } from './data/resources.mjs';
 
@@ -78,6 +78,7 @@ function lostCoin(state, ctx) {
   }
   state.gold -= 100;
   if (ctx.random() < 0.5) {
+    /** @type {[string, number][]} */
     const finds = [['food', ctx.rnd(3, 6)], ['clean', ctx.rnd(2, 4)], ['leather', ctx.rnd(1, 2)], ['metal', ctx.rnd(1, 3)]];
     const f = finds[Math.floor(ctx.random() * finds.length)];
     addRes(state, f[0], f[1]);
@@ -136,6 +137,7 @@ function goldroomLoot(state, ctx) {
   };
 }
 
+/** @type {Record<string, (state: any, ctx: any) => {logs?: LogEntry[], achievements?: string[], combat?: any[]}>} */
 const HANDLERS = { deerHunt, lostCoin, tombOpen, goldroomLoot };
 
 /**
@@ -144,7 +146,6 @@ const HANDLERS = { deerHunt, lostCoin, tombOpen, goldroomLoot };
  * @returns {any[]}
  */
 export function lostOpts(state) {
-  const names = resNames();
   return [
     {
       label: '继续前进', d: '精力 -10，一无所获',

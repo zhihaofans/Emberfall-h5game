@@ -7,9 +7,11 @@ import { ZONES } from './data/zones.mjs';
 import { NIGHT_EVENTS } from './data/events-night.mjs';
 import { addRes, has, skillLvl } from './state.mjs';
 import { resNames } from './data/resources.mjs';
+import { pickExploreEvent } from './explore-events.mjs';
 
 /** @typedef {import('./types.mjs').LogEntry} LogEntry */
 
+/** @param {{random?: () => number, rnd?: (a: number, b: number) => number}} [ctx] */
 function rngOf(ctx = {}) {
   const random = ctx.random ?? Math.random;
   const rnd = ctx.rnd ?? ((a, b) => Math.floor(random() * (b - a + 1)) + a);

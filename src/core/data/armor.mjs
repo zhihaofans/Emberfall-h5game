@@ -42,6 +42,7 @@ export const ENCHANT_TBL_MAX = 5;
 
 /**
  * 三种附魔。`perLevel` 是每级的效果幅度，实际计算在战斗/采集模块里做。
+ * @type {Record<string, {name: string, desc: string, base: Record<string, number>, perLevel: number}>}
  */
 export const ENCHANTS = {
   weapon: { name: '🗡 锋利', desc: '武器伤害 +10%/级', base: { rune: 2, alloy: 2 }, perLevel: 0.10 },
@@ -66,7 +67,7 @@ export function enchantCost(kind, lv) {
 /**
  * 附魔台升到下一级的成本。
  * @param {number} lv 当前等级（0 起）
- * @returns {{stone: number, metal: number, rune: number}}
+ * @returns {Record<string, number>}
  */
 export function enchantTblCost(lv) {
   return { stone: 4 * (lv + 1), metal: 2 * (lv + 1), rune: lv + 1 };

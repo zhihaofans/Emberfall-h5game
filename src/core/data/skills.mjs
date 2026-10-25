@@ -4,6 +4,7 @@
 
 export const SKILLS = ["chop", "mine", "hunt", "fish", "explore", "cook", "combat"];
 
+/** @type {Record<string, string>} */
 export const SKILL_NAMES = {
   "chop": "砍伐",
   "mine": "采掘",

@@ -15,7 +15,7 @@ import {
   ARMOR_MATS, ARMOR_MAT_INFO, ARMOR_SLOTS, ENCHANT_TBL_MAX,
   ENCHANTS, enchantCost, enchantTblCost, armorSlotKey,
 } from './data/armor.mjs';
-import { addRes, spend, has, skillLvl } from './state.mjs';
+import { spend, skillLvl } from './state.mjs';
 import { resNames } from './data/resources.mjs';
 
 /** @typedef {import('./types.mjs').LogEntry} LogEntry */

@@ -84,6 +84,7 @@ export function createNewState(now = Date.now()) {
  * @returns {Record<string, number>}
  */
 export function legacyBestiary(g) {
+  /** @type {Record<string, number>} */
   const b = {};
   const k = (g.stats && g.stats.kills) || 0;
   [1, 2, 3, 4].forEach((n, i) => { if (k >= n) b['beast' + i] = 1; });

@@ -26,6 +26,18 @@ fi
 echo -e "${GREEN}✅ SSOT 校验通过${NC}"
 
 echo ""
+echo -e "${YELLOW}=== 0.5 类型检查（tsc --noEmit，strict + checkJs）===${NC}"
+if [ ! -d node_modules/typescript ]; then
+  echo -e "${RED}❌ 缺少依赖：请先在仓库根执行 npm ci，中止发布${NC}"
+  exit 1
+fi
+if ! npm run --silent typecheck; then
+  echo -e "${RED}❌ 类型检查未通过（src/ 有类型错误），中止发布${NC}"
+  exit 1
+fi
+echo -e "${GREEN}✅ 类型检查通过${NC}"
+
+echo ""
 echo -e "${YELLOW}=== 1. 跑 e2e（统一入口 tests/run-e2e.mjs）===${NC}"
 CHROME="${CHROMIUM_PATH:-/usr/bin/chromium}"
 export CHROMIUM_PATH="$CHROME"             # tests/_env.js 读取该变量

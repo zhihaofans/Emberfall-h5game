@@ -52,7 +52,8 @@
 - `tools/build.mjs`：清产物 → vite build → 复制静态资源 → **按 `dist/` 真实产物生成 `sw.js` 的 `ASSETS`（18 项）**并注入 `BUILD`
 - 实测：`sw.js` 语法 OK；http 服务下 `index.html` / `manifest.json` / `sw.js` / `version.json` / 图标 / assets **全部 200**
 - `manifest.json` 的 `start_url` 改为 `./index.html`（旧版 `index.html` 会 redirect，两种形态都能启动）
-- 已知：本机 `tsc` SIGABRT、`/workspace` 装不了依赖，构建在 `/root` 镜像副本里验证；类型检查交给 CI
+- 已知：`/workspace` 装不了依赖（noexec），构建与 `tsc` 都在 `/root` 镜像副本里验证
+- **2026-10-25 更新**：`tsc --noEmit` 在本机已能跑通（约 75 秒，不再 SIGABRT），245 个类型错误已清零并进门禁（见 §5.5）
 
 - **为什么**：没有骨架，后面每个模块都无处安放；产物要能直接部署成可安装、可离线的 PWA。
 - **怎么做**：
@@ -220,7 +221,7 @@ import { checkArmorSet } from './core/achievements.mjs';
 | 5.2 | `tools/stamp.mjs`：`--bump/--set/--build`，写版本唯一源并回读校验；同时从 `CHANGELOG.md` 生成游戏内 `CHANGELOG` 数组 | 三处（html / sw / version.json）不一致时直接失败；`CHANGELOG.md` 与内联数组逐条一致 |
 | 5.3 | `tools/package.mjs`：只打运行时文件 zip | 包内版本一致性核对 + `find -newer` 防过期 |
 | 5.4 | 替换 `release.sh` | 发布不再由 bash 里 `git add -A` 完成；commit/tag 仍由你执行 |
-| 5.5 | CI（GitHub Actions） | typecheck → 单测 → build → e2e → deploy，全绿才发 |
+| 5.5 | CI（GitHub Actions） | typecheck → 单测 → build → e2e → deploy，全绿才发。**2026-10-25 部分完成**：`npm run typecheck` 已并入 `verify`、CI verify job、`release.sh` 第 0 步（此时 tsc 错误 = 0） |
 | 5.6 | e2e 只留关键路径 | 启动、存档往返、离线重载、安装提示、战斗一场、Boss 一场 |
 | 5.7 | 文档同步 | `AGENT.md` 代码地图按新目录重写；`CHANGELOG` 补 3.0.0；`README` 加开发命令 |
 | 5.8 | **版本号旁显示 git hash**：`tools/build.mjs` 读 `git rev-parse --short=7 HEAD`（工作区脏则加 `-dirty`，取不到写 `unknown`），注入 `version.json` 与构建产物；游戏内 4 处版本号文案（启动日志 / 主菜单 / 死亡页 / 版本规则面板）统一从 `core/version` 读取，**不允许各处手拼** | 显示值与 `git rev-parse --short HEAD` 一致；有未提交改动显示 `-dirty`；无 git 环境（解压的 zip）显示 `unknown` 且不报错；`check-ssot` 增加「产物 sha ↔ 当前 HEAD」校验 |
@@ -236,13 +237,13 @@ import { checkArmorSet } from './core/achievements.mjs';
 | `/root` 执行文件 | ✅ 可以 | 脚本执行返回 0 |
 | npm registry | ✅ 通 | `npm install esbuild` 17s 成功 |
 | **vite + singlefile 构建** | ✅ **可以**（在 `/root`） | vite 8.3.5 构建成功，产物单 HTML 838B，JS 已内联 |
-| `tsc --noEmit` | ❌ 崩 | SIGABRT，`uv__io_poll` 断言失败（exit 134） |
+| `tsc --noEmit` | ✅ 可以（在 `/root` 镜像） | 2026-10-25 复测：约 75 秒，exit 0；早先版本曾 SIGABRT（`uv__io_poll`，exit 134） |
 | `vitest run` | ❌ 失败 | transform 阶段报 `invalid JS syntax`（Vale Farm 时期亦不可用） |
 | `node --test` | ✅ 可以 | 1 pass / exit 0 |
 | Chromium e2e | ❌ 不行 | 打开页面 SIGTRAP（exit 133） |
 
-**结论**：沙箱内能验证「构建产物 + 纯函数单测（`node:test`）+ 语法」；**不能**验证「类型检查 + 浏览器 e2e」。
-因此重构期的 git 工作流建议：源码在 `/workspace` 编辑，构建/测试在 `/root` 的镜像副本里跑（`rsync` 后执行），或直接在本机/CI 上把关 `tsc` 与 e2e。
+**结论**：沙箱内能验证「类型检查 + 构建产物 + 纯函数单测（`node:test`）+ 语法」；**不能**验证「浏览器 e2e」。
+因此重构期的 git 工作流：源码在 `/workspace` 编辑，构建/类型检查/测试在 `/root` 的镜像副本里跑（tar 复制 + 软链 `node_modules` 后执行），e2e 交给 CI。
 
 ---
 

@@ -6,7 +6,8 @@
 // ⚠ 新增成就必须三处同改：MS 加文案 + WHITELIST 加 id + 在触发点调用 checkMilestone。
 //   单测会校验 MS 与 WHITELIST 双向一致，漏一处直接红。
 
-/** 成就文案：数字键是天数里程碑，字符串键是各类成就 */
+/** 成就文案：数字键是天数里程碑，字符串键是各类成就
+ * @type {Record<string, string>} */
 export const MS = {
   3: "生存 3 天",
   7: "生存 7 天",
@@ -89,7 +90,8 @@ export const MS = {
 /** 天数里程碑节点 */
 export const DAY_MILESTONES = [3, 7, 15, 30, 60, 100, 180];
 
-/** 天数奖励（gold 直接加金币，其余按资源加） */
+/** 天数奖励（gold 直接加金币，其余按资源加）
+ * @type {Record<string, Record<string, number>>} */
 export const DAY_REWARDS = {
   3: {},
   7: {"gold":30},

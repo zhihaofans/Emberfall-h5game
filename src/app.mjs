@@ -28,7 +28,7 @@ import { resolveOption, lostOpts } from './core/explore-events.mjs';
 import { pickMonster, fightRound, fightBoss, flee, bossFlee, bait, bossStats, pharaohStats } from './core/combat.mjs';
 import { checkMilestone, checkStageAchieve, checkArmorSet } from './core/achievements.mjs';
 import { pickMerchantGoods, canTrade, buyMerchant, doraInfo, doraGoods, DORA_GIFTS, canGift, giftDora, canBuyDoraGood, buyDoraGood, addDoraFav } from './core/npc.mjs';
-import { markEncounter, wikiProgress } from './core/wiki.mjs';
+import { markEncounter } from './core/wiki.mjs';
 
 // 版本号由构建注入（唯一源：仓库根 version.json）
 const APP_VERSION = __APP_VERSION__;
@@ -94,6 +94,7 @@ function save() {
 
 /* ------------------------------ 日志 / 提示 ------------------------------ */
 
+/** @param {string} text @param {string} [cls] */
 export function log(text, cls = 'sys') {
   logBuffer.push({ text, cls });
   if (logBuffer.length > 300) logBuffer.shift();
@@ -121,6 +122,7 @@ function renderLog() {
 
 /* ------------------------------ 渲染 ------------------------------ */
 
+/** @param {string} key @param {number} value */
 function setBar(key, value) {
   const f = el('f-' + key);
   const v = el('v-' + key);
@@ -187,7 +189,8 @@ function renderMain() {
   else renderActions();
 }
 
-/** 成就 id → 日志（'stage' 是"阶段成就检查"的标记，不是成就 id） */
+/** 成就 id → 日志（'stage' 是"阶段成就检查"的标记，不是成就 id）
+ * @param {string[]} [list] */
 function applyAchievements(list) {
   for (const a of list || []) {
     if (a === 'stage') {
@@ -214,7 +217,7 @@ function costLine(cost) {
  * @param {{logs?: {text: string, cls: string}[], achievements?: string[], refused?: string, time?: number}} r */
 function finishCraftOp(r) {
   if (r.refused) return toast(r.refused);
-  for (const l of r.logs) log(l.text, l.cls);
+  for (const l of r.logs || []) log(l.text, l.cls);
   applyAchievements(r.achievements);
   if (r.time) passTime(r.time);
   renderAll();
@@ -312,6 +315,7 @@ function renderCraft() {
     + '</div>',
   ];
 
+  /** @type {Record<string, [string, any][]>} */
   const tiers = {};
   for (const id in RECIPES) {
     const r = RECIPES[id];
@@ -355,7 +359,8 @@ function renderCraft() {
   box.innerHTML = parts.join('');
 }
 
-/** 制作一件 */
+/** 制作一件
+ * @param {string} id */
 function craftItem(id) {
   finishCraftOp(doCraft(G, id));
 }
@@ -386,7 +391,8 @@ function renderBag() {
   box.innerHTML = parts.join('');
 }
 
-/** 卖 1 个资源 */
+/** 卖 1 个资源
+ * @param {string} id */
 function sellRes(id) {
   const p = resPrices()[id];
   if (!p) return toast('这个不能卖');
@@ -435,6 +441,7 @@ function nextDay() {
   log(`—— 第 ${G.day} 天 · ${SEASONS[G.season]}季 · ${WEATHERS[G.weather]} ——`, 'tit');
 }
 
+/** @param {number} h 推进的小时数 */
 function passTime(h) {
   const days = advanceHour(G, h);
   for (let i = 0; i < days; i++) nextDay();
@@ -476,6 +483,7 @@ function checkDeath() {
 /* ------------------------------ 行动 ------------------------------ */
 
 /** 各行动对应的 core 函数 */
+/** @type {Record<string, (g: any) => any>} */
 const RUNNERS = {
   chop: (g) => doChop(g, {}, name),
   hunt: (g) => doHunt(g, {}, name),
@@ -492,17 +500,18 @@ const RUNNERS = {
   heal: (g) => doHeal(g, {}, name),
 };
 
+/** @param {string} kind */
 export function doAction(kind) {
   if (!G || G.dead) return;
   const a = ACTIONS[kind];
   if (!a) return;
 
-  if (interruptsAuto(kind)) stopAuto(true);
+  if (interruptsAuto(kind)) stopAuto(G, true);
 
   const chk = checkAction(G, kind);
   if (!chk.ok) {
     if (chk.reason) toast(chk.reason);
-    if (chk.stopAuto) stopAuto();
+    if (chk.stopAuto) stopAuto(G);
     return;
   }
 
@@ -541,6 +550,7 @@ function startAutoLoop() {
   }, AUTO_MS);
 }
 
+/** @param {string} kind */
 export function toggleAuto(kind) {
   const running = G.autoAction === kind;
   if (running) {
@@ -595,6 +605,7 @@ function hideEvent() {
   eventOpts = [];
 }
 
+/** @param {string} title @param {string} text @param {any[]} opts */
 function renderEvent(title, text, opts) {
   eventOpts = opts;
   const items = opts.map((o, i) => {
@@ -605,6 +616,7 @@ function renderEvent(title, text, opts) {
   el('evmask').classList.add('show');
 }
 
+/** @param {any} ev */
 function showEvent(ev) {
   pendingEvent = { ...ev };
   G.stats.events++;
@@ -617,6 +629,7 @@ function showEvent(ev) {
 
 function showMerchant() {
   const goods = pickMerchantGoods(G, 4);
+  /** @type {any[]} */
   const opts = goods.map((g) => ({
     label: g.label,
     d: `${g.blurb}（${canTrade(G, g) ? '可交易' : '材料/金币不足'}）`,
@@ -643,6 +656,7 @@ function showDoraMenu() {
 }
 
 function showDoraGifts() {
+  /** @type {any[]} */
   const opts = DORA_GIFTS.map((g, i) => ({
     label: g.label,
     d: `${g.blurb} · 好感 +${g.fav}`,
@@ -655,6 +669,7 @@ function showDoraGifts() {
 
 function showDoraPocket() {
   const goods = doraGoods(G);
+  /** @type {any[]} */
   const opts = goods.map((g) => {
     const costTxt = [
       g.cost > 0 ? `💰${g.cost}` : '',
@@ -673,7 +688,8 @@ function showDoraPocket() {
   renderEvent('万能口袋', doraInfo(G).max ? '它把整个口袋翻给你看！' : '当前好感度可购买的物品：', opts);
 }
 
-/** 结算一个事件选项 */
+/** 结算一个事件选项
+ * @param {number} i */
 function resolveEventIdx(i) {
   const opt = eventOpts[i];
   if (!opt) return;
@@ -726,6 +742,7 @@ function resolveEventIdx(i) {
 
 /* ------------------------------ 战斗弹窗 ------------------------------ */
 
+/** @param {any} monster */
 function showCombat(monster) {
   pendingCombat = { monster, boss: false, isPharaoh: false };
   el('evwrap').innerHTML = `
@@ -739,6 +756,7 @@ function showCombat(monster) {
   el('evmask').classList.add('show');
 }
 
+/** @param {boolean} isPharaoh */
 function showBoss(isPharaoh) {
   const st = isPharaoh ? pharaohStats(G) : bossStats(G);
   pendingCombat = { monster: { ...st }, boss: true, isPharaoh };
@@ -752,6 +770,7 @@ function showBoss(isPharaoh) {
   el('evmask').classList.add('show');
 }
 
+/** @param {string} act */
 function doCombatAction(act) {
   const c = pendingCombat;
   hideEvent();
@@ -854,7 +873,7 @@ export function boot() {
 
   el('evwrap')?.addEventListener('click', (e) => {
     const combatBtn = closestEl(e.target, '[data-combat]');
-    if (combatBtn) { doCombatAction(combatBtn.dataset.combat); return; }
+    if (combatBtn) { doCombatAction(String(combatBtn.dataset.combat)); return; }
 
     const doraBtn = closestEl(e.target, '[data-dora]');
     if (doraBtn) {

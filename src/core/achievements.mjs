@@ -160,6 +160,7 @@ export function checkArmorSet(state) {
   /** @type {LogEntry[]} */
   const logs = [];
   if (!state.stats.setsWorn) state.stats.setsWorn = [];
+  /** @param {string} slot */
   const matOf = (slot) => state.items['armor' + slot[0].toUpperCase() + slot.slice(1)] || 'none';
 
   for (const m of ARMOR_MATS) {

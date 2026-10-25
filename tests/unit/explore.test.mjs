@@ -9,7 +9,7 @@ import { createNewState } from '../../src/core/save.mjs';
 import { ZONES } from '../../src/core/data/zones.mjs';
 import { NIGHT_EVENTS } from '../../src/core/data/events-night.mjs';
 import { resNames } from '../../src/core/data/resources.mjs';
-import { exploreZone, rollNightEvent } from '../../src/core/explore.mjs';
+import { exploreZone, rollNightEvent, rollExploreEvent } from '../../src/core/explore.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const html = readFileSync(resolve(ROOT, 'survival.html'), 'utf8');
@@ -191,4 +191,18 @@ test('夜晚：四种事件（夜袭/寒夜/小偷/宁静）与旧实现一致',
       }
     }
   }
+});
+
+test('rollExploreEvent：落到"抽事件"分支不抛错（曾漏 import pickExploreEvent）', () => {
+  const s = createNewState(NOW);
+  s.day = 1; // 低于兽王(30 天)/法老(25 天)门槛，只走后两段判定
+
+  // forest 的 danger 是 0.18：0.9 不进战斗，应当继续抽事件
+  const r = rollExploreEvent(s, 'forest', { ctx: { random: () => 0.9 } });
+  assert.equal(r.kind, 'event', `期望抽到事件，实际 ${r.kind}`);
+  assert.ok(r.event && r.event.id, '抽到的事件要带 id');
+
+  // 换成 0.01 就该进战斗分支
+  const r2 = rollExploreEvent(s, 'forest', { ctx: { random: () => 0.01 } });
+  assert.equal(r2.kind, 'combat');
 });

@@ -89,7 +89,8 @@ export function pickMonster(state, opts = {}) {
   const tierScale = opts.tierScale ?? 1;
   const forceBeasts = !!opts.forceBeasts;
 
-  const zonePool = REGION_BEASTS[zone];
+  /** @type {any} */
+  const zonePool = zone ? /** @type {Record<string, any>} */ (REGION_BEASTS)[zone] : null;
   const useZone = !forceBeasts && zonePool && random() < 0.45;
   const pool = useZone ? zonePool : BEASTS;
 

@@ -12,7 +12,8 @@ export const DORA_LEVELS = [
   {"lvl":6,"name":"家人","need":300},
 ];
 
-/** 万能口袋商品（按好感等级解锁） */
+/** 万能口袋商品（按好感等级解锁）
+ * @type {{lvl: number, name: string, cost: number, give: Record<string, number>, get: Record<string, number>, blurb: string, key?: string}[]} */
 export const DORA_GOODS = [
   {"lvl":1,"name":"用 5 生食换 3 净水","cost":0,"give":{"food":5},"get":{"clean":3},"blurb":"「前辈说过，水比什么都金贵。」"},
   {"lvl":1,"name":"用 3 石头换 2 木材","cost":0,"give":{"stone":3},"get":{"wood":2},"blurb":"「口袋里有几根干木头。」"},
@@ -26,7 +27,8 @@ export const DORA_GOODS = [
   {"lvl":5,"name":"🎰🎰 抽奖券 ×3（挚友特供）","cost":1800,"give":{"alloy":10},"get":{"luckyDraw":3},"blurb":"「多抽几把，说不定中大奖。」"},
 ];
 
-/** 送礼表：好感度加成 */
+/** 送礼表：好感度加成
+ * @type {{label: string, need: Record<string, number>, fav: number, blurb: string}[]} */
 export const DORA_GIFTS = [
   { label: "🤝 送 🔩金属×5", need: { metal: 5 }, fav: 8, blurb: "它接过金属零件，眼睛亮了一下" },
   { label: "🤝 送 ⚙️合金×2", need: { alloy: 2 }, fav: 15, blurb: "它爱不释手地摆弄着合金" },
@@ -34,7 +36,8 @@ export const DORA_GIFTS = [
   { label: "🤝 送 🍖食物×10", need: { food: 10 }, fav: 5, blurb: "它说这味道让它想起前辈的铜锣烧" },
 ];
 
-/** 流浪商人商品池（每次随机抽 4 件） */
+/** 流浪商人商品池（每次随机抽 4 件）
+ * @type {{tag: string, label: string, give: Record<string, number>, get: Record<string, number>, blurb: string, cost?: number, key?: string, hideWhenAllLearned?: boolean}[]} */
 export const MERCHANT_GOODS = [
   {"tag":"公平","label":"用 3 木材换 4 生食","give":{"wood":3},"get":{"food":4},"blurb":"「生食都是刚打到的，新鲜！」"},
   {"tag":"公平","label":"用 2 金属换 3 草药","give":{"metal":2},"get":{"herb":3},"blurb":"「草药能治百病，老顾客都爱买。」"},

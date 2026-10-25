@@ -514,11 +514,16 @@ if (!canSW) return;   // file:// 直接打开：不注册、不报错、游戏�
 | 层 | 命令 | 需要什么 | 什么时候跑 |
 |---|---|---|---|
 | SSOT 校验 | `node tools/check-ssot.mjs` | 只要 Node | 每次改数据表/版本/图标 |
+| 类型检查 | `npm run typecheck`（= `tsc --noEmit`） | Node + 已 `npm ci` | 每次改 `src/` |
 | 单元测试 | `node --test tests/unit/*.test.mjs` | 只要 Node | 改 `tools/lib/` 与纯函数 |
-| 本地全量 | `npm run verify` | 只要 Node | 提交前（= SSOT + 单测） |
+| 本地全量 | `npm run verify` | Node + 已 `npm ci` | 提交前（= SSOT + 类型检查 + 单测） |
 | e2e | `node tests/run-e2e.mjs` | 真实 Chromium | CI；本地能起浏览器时也跑 |
 | CI | `.github/workflows/ci.yml` | GitHub Runner | push / PR / 手动 |
 
+> **类型检查必须进门禁**（2026-10-25 定）：`src/**` 用 `allowJs + checkJs + strict`，但 CI 最初只跑 SSOT / 单测 / build，
+> 结果 245 个类型错误长期潜伏、且"CI 全绿"被误读成"类型干净"。现已并入 `npm run verify`、CI verify job 与 `release.sh` 第 0 步。
+> **装不上依赖时 `npm run verify` 会停在类型检查**（`sh: tsc: not found`，退出码 127）——这是刻意的，不静默跳过。
+> 这种环境下先用 `npm run ssot && npm run unit` 跑剩下两项，并把类型检查交给 CI，**不要据此宣称"验证全绿"**。
 > **单测必须串行跑**：本机容器里 `node --test` 并行跑多个测试文件会 SIGSEGV（内存限制），所以脚本里统一带 `--test-concurrency=1`。
 > **容器/沙箱里 Chromium 常起不来**（本仓库实测：`/usr/bin/chromium` 打开页面即 SIGTRAP，且 `/workspace` 为 noexec + 不能建符号链接，`npm ci` 也会 EPERM）。
 > 这种情况以 **CI 的 e2e 结果为准**，不要把"本地跑不了"当成"测试通过"。

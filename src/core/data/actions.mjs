@@ -2,6 +2,8 @@
 //
 // 与 survival.html 的 ACTIONS 逐一对应。autoLv 是"能开启自动循环"的技能等级门槛。
 
+/** 13 个行动（key 即行动 id）
+ * @type {Record<string, {name: string, sub: string, time: number, stam: number, kind: string, auto: boolean, skill?: string, autoLv?: number}>} */
 export const ACTIONS = {
   "explore": {"name":"探索","sub":"随机事件","time":2,"stam":18,"kind":"explore","auto":false,"skill":"explore"},
   "chop": {"name":"砍柴","sub":"自动·木材","time":1,"stam":8,"kind":"chop","auto":true,"skill":"chop","autoLv":3},

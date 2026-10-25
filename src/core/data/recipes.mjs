@@ -3,6 +3,8 @@
 // 与 survival.html 的 RECIPES 逐一对应。
 // needLv / skill：未达等级时制作面板只显示等级要求（不显示材料）。
 
+/** 22 条配方（key 即配方 id）
+ * @type {Record<string, {name: string, desc: string, cost: Record<string, number>, time: number, need: string|null, tier: number, needLv?: number, skill?: string}>} */
 export const RECIPES = {
   "axe": {"name":"🪓石斧","desc":"砍柴量 +50%","cost":{"stone":8,"wood":5},"time":2,"need":null,"tier":1,"needLv":3,"skill":"chop"},
   "knife": {"name":"🔪石刀","desc":"狩猎/战斗必需","cost":{"stone":6,"wood":4},"time":2,"need":null,"tier":1,"needLv":1,"skill":"hunt"},

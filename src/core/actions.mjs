@@ -524,3 +524,65 @@ export function doFish(state, ctx = {}) {
   }
   return { logs, achievements, xp };
 }
+
+/* ------------------------------ 自动放置循环 ------------------------------ */
+// 对应 survival.html 的 startAuto / stopAuto / gameTick。
+// 渲染与计时器（setInterval 1600ms）属于表现层，这里只算"该不该执行、执行什么"。
+
+/**
+ * 开启自动行动。只有 `auto: true` 的行动能自动循环。
+ * @param {any} state
+ * @param {string} kind
+ * @returns {{ok: boolean, logs: LogEntry[]}}
+ */
+export function startAuto(state, kind) {
+  const a = ACTIONS[kind];
+  if (!a || !a.auto) return { ok: false, logs: [] };
+  state.autoAction = kind;
+  return { ok: true, logs: [{ text: `⏳ 开始自动${a.name}（可随时切换或停止）`, cls: 'sys' }] };
+}
+
+/**
+ * 停止自动行动。
+ * @param {any} state
+ * @param {boolean} [silent] 静默停止（不写日志）
+ * @returns {{logs: LogEntry[]}}
+ */
+export function stopAuto(state, silent = false) {
+  const logs = [];
+  if (state.autoAction) {
+    state.autoAction = null;
+    if (!silent) logs.push({ text: '⏹ 停止自动行动。', cls: 'sys' });
+  }
+  return { logs };
+}
+
+/**
+ * 每次心跳判断要不要执行一次自动行动。
+ *
+ * 规则（与旧 gameTick 一致）：
+ *   1. 角色死亡 → 静默停止自动
+ *   2. 有事件弹窗 / 战斗中 → 本次跳过（不停止）
+ *   3. 没有自动行动 → 什么都不做
+ *   4. 自动行动已失效（表里没有或不是 auto）→ 清空并跳过
+ *
+ * @param {any} state
+ * @param {{blocked?: boolean}} [opts] blocked = 当前有弹窗/战斗
+ * @returns {{action: string|null, stopped?: boolean, cleared?: boolean}}
+ */
+export function nextAutoAction(state, opts = {}) {
+  const blocked = !!opts.blocked;
+  if (state.dead) {
+    stopAuto(state, true);
+    return { action: null, stopped: true };
+  }
+  if (blocked) return { action: null };
+  if (!state.autoAction) return { action: null };
+
+  const a = ACTIONS[state.autoAction];
+  if (!a || !a.auto) {
+    state.autoAction = null;
+    return { action: null, cleared: true };
+  }
+  return { action: state.autoAction };
+}

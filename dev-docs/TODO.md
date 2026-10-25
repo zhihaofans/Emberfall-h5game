@@ -107,7 +107,7 @@
 |---|---|---|---|
 | 3.1 | `core/data/*.mjs` | **已搬 10 张**：`resources` / `skills` / `zones` / `actions` / `recipes` / `upgrades` / `weapons` / `monsters` / `shop` / `luck-events`；**剩余都带效果函数**（`ENCHANTS.effect`、`MERCHANT_GOODS`、`DORA_GOODS`、`EXPLORE_EVENTS`），随对应逻辑模块一起搬 | 数值快照 + 与旧文件逐项 diff（已建立对拍模式：36 条零漂移断言 + 交叉引用校验） |
 | 3.2 | `core/time.mjs` | `passTime / nextDay / tick / applyPassive / checkDeath`、季节天气 | 单测：跨日结算、饥饿/口渴掉血、死亡与图腾复活、睡眠被偷 |
-| 3.3 | `core/actions.mjs` | **已完成**：前置检查 `checkAction` / 精力结算 `payActionCost` / 13 个行动产出（进食·饮水·睡觉·治疗·取水·烹饪·烧水·砍柴·狩猎·熔炼·采矿·炼锭·钓鱼）+ `data/fishing.mjs` 掉落表；**待搬**：`startAuto / stopAuto / gameTick`（自动循环） | 单测 20 条：材料不足不扣精力（历史坑 #4）、27 组前置检查对拍、13 个行动的日志/资源/统计**逐字段对拍**（含钓鱼五分支） |
+| 3.3 | `core/actions.mjs` | **已完成**：前置检查 `checkAction` / 精力结算 `payActionCost` / 13 个行动产出（进食·饮水·睡觉·治疗·取水·烹饪·烧水·砍柴·狩猎·熔炼·采矿·炼锭·钓鱼）+ `data/fishing.mjs` 掉落表；自动循环 `startAuto / stopAuto / nextAutoAction` | 单测 26 条：材料不足不扣精力（历史坑 #4）、27 组前置检查对拍、13 个行动**逐字段对拍**（含钓鱼五分支）、自动循环 6 条对拍 |
 | 3.4 | `core/craft.mjs` | `doCraft / craftArmor / upgradeItem / upgradeCost / recipeVisible / hasRes / spend / addRes` | 单测：22 配方解锁链、装备材质链、强化 10 级后额外消耗 |
 | 3.5 | `core/combat.mjs` | `weaponAtk / armorDmgMult / fight / startCombat / bossStats / pharaohStats` | 单测：伤害公式（含强化/附魔/技能）、减伤下限 0.1、Boss 三阶段 |
 | 3.6 | `core/achievements.mjs` | `checkMilestone` 白名单 + `checkZoneAchieve / checkStageAchieve / checkFishAchieve / checkArmorSet` | 单测：`MS` 里 76 个文案 id 与白名单**双向一致**（新增成就漏登记直接红） |

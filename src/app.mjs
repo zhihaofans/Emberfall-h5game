@@ -10,7 +10,7 @@
 import { createNewState, parseSavePayload, serialize } from './core/save.mjs';
 import { ACTIONS } from './core/data/actions.mjs';
 import { SEASONS, WEATHERS, seasonOf, rollWeather, dailyConsume, advanceHour, applyPassive } from './core/time.mjs';
-import { resNames } from './core/data/resources.mjs';
+import { resNames, RESOURCES, resPrices } from './core/data/resources.mjs';
 import {
   checkAction, payActionCost, interruptsAuto,
   startAuto, stopAuto, nextAutoAction,
@@ -38,6 +38,7 @@ let G = null;
 const logBuffer = [];
 let autoTimer = null;
 let curZone = 'forest';
+let curTab = 'act';
 /** @type {any} */
 let pendingEvent = null;
 /** @type {any[]} */
@@ -116,6 +117,7 @@ function renderStatus() {
 function renderActions() {
   const box = el('actions');
   if (!box) return;
+  box.classList.remove('bag-mode');
   const parts = [];
   for (const k in ACTIONS) {
     if (k === 'eat' || k === 'drink') continue;
@@ -145,8 +147,52 @@ function renderActive() {
 export function renderAll() {
   renderStatus();
   renderZone();
-  renderActions();
+  renderMain();
   renderActive();
+}
+
+/** 按当前页签渲染主区域 */
+function renderMain() {
+  if (curTab === 'bag') renderBag();
+  else renderActions();
+}
+
+/** 背包：进食/饮水 + 资源列表 + 出售 */
+function renderBag() {
+  const box = el('actions');
+  if (!box) return;
+  box.classList.add('bag-mode');
+  const price = resPrices();
+  const parts = [];
+
+  parts.push('<button class="actbtn" data-bag-act="eat"><span>🍽 进食</span><span class="sub">饱食 ' + G.food + '/100</span></button>');
+  parts.push('<button class="actbtn" data-bag-act="drink"><span>💧 饮水</span><span class="sub">水分 ' + G.water + '/100</span></button>');
+
+  for (const r of RESOURCES) {
+    const n = G.res[r.id] || 0;
+    const p = price[r.id];
+    const sellable = !!p && n > 0;
+    parts.push(
+      `<div class="bagrow"><span>${r.name} <span class="cnt">×${n}</span></span>`
+      + '<span style="display:flex;align-items:center;gap:6px">'
+      + `<span style="font-size:11px;color:var(--txt-faint)">${p ? p + '💰/个' : '不可出售'}</span>`
+      + `<button class="sell" data-sell="${r.id}" ${sellable ? '' : 'disabled style="opacity:.35"'}>出售</button>`
+      + '</span></div>',
+    );
+  }
+  box.innerHTML = parts.join('');
+}
+
+/** 卖 1 个资源 */
+function sellRes(id) {
+  const p = resPrices()[id];
+  if (!p) return toast('这个不能卖');
+  if ((G.res[id] || 0) <= 0) return toast('没有可卖的');
+  G.res[id]--;
+  G.gold += p;
+  log(`💰 卖出${name(id)} ×1，获得 ${p} 金币。`, 'good');
+  renderAll();
+  save();
 }
 
 function renderZone() {
@@ -550,12 +596,32 @@ export function boot() {
   log('点击下方按钮开始行动；可以长按「自动」类行动进入放置模式。', 'sys');
 
   el('actions')?.addEventListener('click', (e) => {
-    const btn = /** @type {HTMLElement} */ (e.target).closest('.actbtn');
+    const target = /** @type {HTMLElement} */ (e.target);
+
+    const sellBtn = target.closest('[data-sell]');
+    if (sellBtn && !sellBtn.disabled) { sellRes(sellBtn.dataset.sell); return; }
+
+    const bagBtn = target.closest('[data-bag-act]');
+    if (bagBtn) {
+      if (bagBtn.dataset.bagAct === 'eat') doAction('eat');
+      else if (bagBtn.dataset.bagAct === 'drink') doAction('drink');
+      return;
+    }
+
+    const btn = target.closest('.actbtn');
     if (!btn) return;
     const kind = btn.dataset.kind;
     if (!kind) return;
     if (ACTIONS[kind] && ACTIONS[kind].auto) toggleAuto(kind);
     else doAction(kind);
+  });
+
+  el('tabs')?.addEventListener('click', (e) => {
+    const tab = /** @type {HTMLElement} */ (e.target).closest('.tab');
+    if (!tab || !tab.dataset.tab) return;
+    curTab = tab.dataset.tab;
+    for (const b of document.querySelectorAll('#tabs .tab')) b.classList.toggle('on', b === tab);
+    renderAll();
   });
 
   el('zonebar')?.addEventListener('click', (e) => {

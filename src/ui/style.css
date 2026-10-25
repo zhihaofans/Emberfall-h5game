@@ -290,3 +290,8 @@ textarea#exportArea{
 #pwaBanner .pwa-x{
   display:inline-block;margin-left:10px;padding:0 4px;opacity:.6;font-size:15px;
 }
+
+/* —— P2 新增：背包模式（#actions 从网格切成单列列表） —— */
+#actions.bag-mode{display:block;max-height:60vh}
+#actions.bag-mode .actbtn{width:100%;flex-direction:row;justify-content:space-between;padding:10px 12px;margin-bottom:6px}
+#actions.bag-mode .actbtn .sub{margin-left:auto}

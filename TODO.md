@@ -45,7 +45,13 @@
 
 ## 2. P0 · 地基（先做，1–2 天）
 
-### 2.1 建工程骨架 —— Vite 多文件产物，本地 http 打开即玩
+### 2.1 建工程骨架 —— Vite 多文件产物，本地 http 打开即玩 —— ✅ 已完成（2026-10-25）
+
+- 产物：`npm run build` → `dist/`（19 个文件 / 1.18 MB），含 `index.html` + `assets/*.js` + `icons/` + `splash/` + `screenshots/` + `manifest.json` + `version.json` + `sw.js`
+- `tools/build.mjs`：清产物 → vite build → 复制静态资源 → **按 `dist/` 真实产物生成 `sw.js` 的 `ASSETS`（18 项）**并注入 `BUILD`
+- 实测：`sw.js` 语法 OK；http 服务下 `index.html` / `manifest.json` / `sw.js` / `version.json` / 图标 / assets **全部 200**
+- `manifest.json` 的 `start_url` 改为 `./index.html`（旧版 `index.html` 会 redirect，两种形态都能启动）
+- 已知：本机 `tsc` SIGABRT、`/workspace` 装不了依赖，构建在 `/root` 镜像副本里验证；类型检查交给 CI
 
 - **为什么**：没有骨架，后面每个模块都无处安放；产物要能直接部署成可安装、可离线的 PWA。
 - **怎么做**：

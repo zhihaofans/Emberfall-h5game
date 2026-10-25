@@ -5,7 +5,7 @@
   "description": "末日废土文字生存点击游戏：采集、制作、探索、战斗、附魔，纯本地存档，可离线游玩。",
   "lang": "zh-CN",
   "dir": "ltr",
-  "start_url": "./survival.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],

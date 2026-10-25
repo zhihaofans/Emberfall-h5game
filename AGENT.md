@@ -84,7 +84,7 @@
 ```
 survival.html      游戏本体（HTML+CSS+JS 全内联，6436 行）
 index.html         入口，redirect 到 survival.html
-manifest.json      PWA 清单（start_url ./survival.html, scope ./, standalone）
+manifest.json      PWA 清单（start_url ./index.html, scope ./, standalone）
 sw.js              Service Worker（cacheFirst + 版本化缓存 + 清旧）
 version.json       版本信息（页面切前台比对，SW 字节不变时的兜底更新路径）
 icons/             7 张图标（192/512/maskable-512/apple-180/128/favicon/1024 母版）
@@ -428,8 +428,8 @@ weaponAtk()        = base.atk × (1 + 锋利等级×0.10)
 
 | 文件 | 职责 | 禁改点 |
 |---|---|---|
-| `manifest.json` | 安装清单 | `start_url: "./survival.html"`、`scope: "./"` 必须保持相对路径 |
-| `sw.js` | 预缓存 + cacheFirst + 清旧缓存 | 不要写死版本号（用 `BUILD` 常量由脚本注入）；不要改回 networkFirst |
+| `manifest.json` | 安装清单 | `start_url: "./index.html"`、`scope: "./"` 必须保持相对路径（旧版 `index.html` 会 redirect 到 `survival.html`，两种形态都能启动） |
+| `sw.js` | 预缓存 + cacheFirst + 清旧缓存 | 不要写死版本号（用 `BUILD` 常量由脚本注入）；**`ASSETS` 由 `tools/build.mjs` 按 `dist/` 产物生成，不要手改**；不要改回 networkFirst |
 | `version.json` | 版本比对数据源 | 由 `release.sh` 生成，不要手改 |
 | `survival.html` 末尾 `pwaBoot()` | 注册、安装引导、更新提示、离线标识 | 整段可注释掉而不影响游戏（保持解耦） |
 

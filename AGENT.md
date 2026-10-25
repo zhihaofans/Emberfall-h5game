@@ -495,10 +495,26 @@ if (!canSW) return;   // file:// 直接打开：不注册、不报错、游戏�
 
 ### 8.1 测试约定
 
-- 目录：`tests/`（与项目同级，**随仓库入库**；不进发布包）——`node_modules/` 由 `.gitignore` 排除，本地用 `npm ci` 生成
-- 命名：`v<版本号去点>.js`（如 `v1300.js`），回归测试用固定名（`version.js` / `layout.js` / `regress.js` 等）
-- 技术：`puppeteer-core` + 系统 Chromium（`/usr/bin/chromium`），**真实浏览器**，不用 jsdom
-- 路径：项目根 / 游戏 URL / 浏览器路径统一从 `tests/_env.js` 取（`ROOT` / `URL` / `CHROMIUM`），**禁止硬编码绝对路径**；浏览器路径可用环境变量 `CHROMIUM_PATH` 覆盖
+**分工（重要）**：本地只跑得起「不需要浏览器」的那部分，需要浏览器的交给 CI。
+
+| 层 | 命令 | 需要什么 | 什么时候跑 |
+|---|---|---|---|
+| SSOT 校验 | `node tools/check-ssot.mjs` | 只要 Node | 每次改数据表/版本/图标 |
+| 单元测试 | `node --test tests/unit/*.test.mjs` | 只要 Node | 改 `tools/lib/` 与纯函数 |
+| 本地全量 | `npm run verify` | 只要 Node | 提交前（= SSOT + 单测） |
+| e2e | `node tests/run-e2e.mjs` | 真实 Chromium | CI；本地能起浏览器时也跑 |
+| CI | `.github/workflows/ci.yml` | GitHub Runner | push / PR / 手动 |
+
+> **容器/沙箱里 Chromium 常起不来**（本仓库实测：`/usr/bin/chromium` 打开页面即 SIGTRAP，且 `/workspace` 为 noexec + 不能建符号链接，`npm ci` 也会 EPERM）。
+> 这种情况以 **CI 的 e2e 结果为准**，不要把"本地跑不了"当成"测试通过"。
+
+- 目录：`tests/`（随仓库入库，不进发布包）；`tests/unit/` 是纯函数单测，`tests/*.js` 是浏览器 e2e
+- 依赖：装在**仓库根**（`npm ci`），`tests/package.json` 只声明 `"type": "commonjs"` 用于让 e2e 用例保持 CJS
+- 命名：e2e 用 `v<版本号去点>.js`（如 `v1300.js`），回归用固定名（`version.js` / `layout.js` / `regress.js`）
+- 技术：`puppeteer-core` + 系统 Chromium，**真实浏览器**，不用 jsdom
+- 路径：项目根 / 游戏 URL / 浏览器路径统一从 `tests/_env.js` 取（`ROOT` / `URL` / `CHROMIUM`），**禁止硬编码绝对路径**；浏览器路径可用 `CHROMIUM_PATH` 覆盖
+- e2e 统一入口：`tests/run-e2e.mjs`（默认跑发布前白名单 15 个，`--all` 跑全部）。**它把"进程崩了但一条断言都没跑"也算失败**，避免误判通过
+- 单测写法：`node:test` + `node:assert/strict`，文件 `tests/unit/*.test.mjs`
 - 写法骨架：
 
 ```js
@@ -519,7 +535,7 @@ const ok=(c,n)=>{ c?(pass++,console.log('✅ '+n)):(fail++,console.log('❌ '+n)
 
 ```
 0. 跑 `node tools/check-ssot.mjs`（单一数据源校验，只读；不一致即中止，见 §0.5）
-1. 跑 `tests/` 下 15 个测试文件（缺依赖 / 缺测试文件 / 0 断言 / 有失败 → 一律中止）
+1. 跑 `node tests/run-e2e.mjs`（统一入口；有失败 / 有文件跑不起来 / 0 断言 → 一律中止）
 2. 提取 GAME_VERSION / BUILD_CODE
 3. 把 BUILD 注入 sw.js，重写 version.json，回读校验三处一致
 4. git commit "v<ver> · <说明>"

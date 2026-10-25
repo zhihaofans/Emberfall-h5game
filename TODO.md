@@ -39,7 +39,7 @@
 | **D4** | 内联第三方库（LZString + QR，约 2400 行） | A) 转 npm 依赖　B) 放 `src/vendor/` 保留源码　C) 继续内联 | **A**，但 QR 生成/扫描若依赖相机权限，单独评估。理由是自研维护 2400 行第三方代码无意义 |
 | **D5** | 旧存档支持范围 | A) 只保证 fmt 11 起能读　B) 连 fmt 1–10 全链路迁移 | **A**（现有 `migrateFrom` 已覆盖，迁移后仍需逐代测）。B 只在你手上有更老的档要救时才做 |
 | **D6** | 66 个旧 puppeteer 用例 | A) 全部作废重写　B) 抽取断言改成 core 单测　C) 原样保留 | **B**。这些用例的价值在断言（数值、状态、成就），不在 DOM 选择器；能抽的先抽成纯函数测试 |
-| **D7** | 单测框架 | A) vitest（Vale Farm 同款）　B) `node:test` | **A 为本机/CI 标准**；同时写一层 `node:test` 兼容入口，因为沙箱里 vitest 跑不起来（见 §4） |
+| **D7** | 单测框架 | A) vitest　B) `node:test` | **已定 B**（2026-10-25）：`node:test` 零依赖、沙箱能跑；vitest 在本机容器里跑不起来，收益抵不过风险 |
 
 ---
 
@@ -68,12 +68,13 @@
   - 未知字段不丢：塞一个未来字段进去，规范化后仍在（或按约定显式丢弃并记录）
 - **成本**：中。**风险**：高，必须第一个做。
 
-### 2.3 定测试基建
+### 2.3 定测试基建 —— ✅ 已完成（2026-10-25）
 
-- **为什么**：没有可跑的测试，"重构不改行为"就是空话。
-- **怎么做**：`tests/unit/` 用 vitest；同时提供 `node --test` 入口（沙箱用）。断言里禁止抄文案，统一从数据表引用。
-- **验收**：`npm run test` 与 `node --test` 两种入口都能在 3 秒内跑完骨架用例；故意改坏一个断言能让两者都变红。
-- **成本**：小。**依赖**：D7。
+- 本地层：`npm run verify` = SSOT 校验 + `node --test` 单测（11 条，**实测 EXIT=0**），不需要浏览器
+- 浏览器层：`tests/run-e2e.mjs` 统一入口（白名单 15 个 / `--all` 全部），把"进程崩了但 0 断言"也算失败
+- CI：`.github/workflows/ci.yml` 两个 job（`verify` 无浏览器 → `e2e` 用 `browser-actions/setup-chrome`），另有 `workflow_dispatch` 可跑全部用例
+- 依赖统一到仓库根 `package.json`（`puppeteer-core`），`tests/package.json` 只留 `"type": "commonjs"`
+- 已知限制：沙箱里 `npm ci` 会因 `/workspace` 不能建符号链接而 EPERM、Chromium 打不开页面 —— e2e 以 CI 为准
 
 ### 2.4 先立「只改一处」的校验（`check-ssot`，只查不写）—— ✅ 已完成（2026-10-25）
 

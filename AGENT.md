@@ -25,18 +25,45 @@
 
 | 字段 | 位置 | 规则 |
 |---|---|---|
-| `GAME_VERSION` | `survival.html:2683` | SemVer。MAJOR=运行形态或存档不兼容 · MINOR=新功能 · PATCH=修 bug |
-| `BUILD_CODE` | `survival.html:2685` | **每次发布 +1**，用于缓存失效与版本追溯 |
+| `GAME_VERSION` | `survival.html:2683` | SemVer。MAJOR=不兼容的重大重构（运行形态 / 工程结构）或存档不兼容 · MINOR=新功能 · PATCH=修 bug |
+| `BUILD_CODE` | `survival.html:2685` | **每次发布单调 +1**（下一个是 103），与版本号解耦，不随 MAJOR 重置 |
 | `SAVE_FMT` | `survival.html:3073` | 存档结构版本，**只在存档字段变化时 +1**，并在 `migrateFrom` 补迁移 |
 | `CHANGELOG` | `survival.html:2703` | 每条 `{ver, date, title, notes[]}`，`title` 必填 |
+| `CHANGELOG.md` | 仓库根 | 完整历史归档（75 版 / 216 条），**与游戏内数组是同一份数据**，新增条目两处同步；重构后改为构建时从该文件生成 |
+
+**版本策略现状（2026-10-25 定）**：下一个 MAJOR 是 **3.0.0**（架构重构：TS 分层 + 构建链 + 发布链路全换）；`BUILD_CODE` 从 103 继续递增，不跳到 300，也不随 MAJOR 重置。历史执行统计：1.0.0（2026-08-09）→ 1.30.2（08-11），MINOR 最高 30、单 MINOR 内 PATCH 最多 9 个；MAJOR 只用过 2.0.0（PWA 化）。
 
 发布时 `release.sh` 会把 `BUILD_CODE` 注入 `sw.js` 的 `BUILD` 常量并生成 `version.json`，三处不一致会直接中止发布。
 
-### 0.4 不许破坏的三件事
+### 0.4 不许破坏的两件事
 
 1. **老存档必须能读**（`migrateFrom` + `normalizeState` 兜底，任何新字段都要登记）
-2. **`file://` 双击直接打开必须能玩**（不注册 SW、不报错）
-3. **单文件可分发**（`survival.html` 发给别人就能跑，PWA 只是外壳）
+2. **单文件可分发**（`survival.html` 发给别人就能跑，PWA 只是外壳）
+
+> `file://` 双击直接打开**不再是验收项**（2026-10-25 起取消）。重构引入模块化与构建链后不再保证该场景，验证一律走本地 http 服务。
+> 代码里「`file://` 下不注册 SW」的防御仍保留 —— 只是避免意外打开时抛错，不代表该场景受支持。
+
+### 0.5 单一数据源（SSOT）：同一事实只改一处
+
+同一事实只允许有一个「源」，其余位置都是**生成物**，由脚本写入或校验。**生成物禁止手改**——手改的部分下次同步就被覆盖。
+
+| 事实 | 唯一源 | 生成物 / 派生位置 |
+|---|---|---|
+| 版本号 `ver` | `version.json` | `survival.html` 的 `GAME_VERSION` |
+| 构建号 `build` | `version.json`（`tools/stamp.mjs` 写入） | `survival.html` 的 `BUILD_CODE`、`sw.js` 的 `BUILD` |
+| 更新日志 | `CHANGELOG.md` | `survival.html` 的 `CHANGELOG` 数组 |
+| 图标 / 启动图清单 | `icons/`、`splash/` 目录 | `manifest.json` 的 `icons[]`、`survival.html` 的 `<link rel=…>` |
+| SW 预缓存清单 | 构建产物目录 | `sw.js` 的 `ASSETS` |
+| 资源定义（名称 / 卖价 / 获取途径 / 初始值） | 一张 `RESOURCES` 表 | `RES_NAMES` / `RES_PRICE` / `GET_WHERE` / `newGame().res` / `normalizeState` 的默认值 |
+| 数值附录（附录 A–H） | 源码数据表 | `AGENT.md` 附录（应由脚本导出，不手抄） |
+
+**规则**：
+
+1. 改数据前先问一句：这是源还是生成物？生成物一律改源。
+2. **判断标准**：同一事实如果要在两个文件里各改一次，就说明缺一个生成器 —— 补生成器，不要补纪律。
+3. **能生成的不要手改**：`node tools/sync-meta.mjs` 从 `version.json` + `CHANGELOG.md` 生成本表前四项（版本号 / 构建号 / `sw.js` 的 BUILD / 更新日志）。`--check` 只查不写，`--dry-run` 只打印。
+4. **只能校验的靠 check**：图标清单、启动图、SW 预缓存、资源定义目前无法无损推导，由 `node tools/check-ssot.mjs` 校验（发布前强制，见 `release.sh` 第 0 步）。
+5. 每新增一处重复，就同时加一条校验；不一致必须能让发布失败。
 
 ---
 
@@ -63,14 +90,16 @@ icons/             7 张图标（192/512/maskable-512/apple-180/128/favicon/1024
 splash/            6 张 iOS 启动图（深色主题）
 screenshots/       1 张安装卡片截图
 release.sh         一键发布（测试 → 注入版本 → commit/tag → 打包 → 一致性核对）
-.cloudstudio       静态服务配置（部署用，不参与运行，打包时排除）
+tests/             回归测试（puppeteer，入库但不进发布包）
+CHANGELOG.md       完整更新历史（75 版 / 216 条，与游戏内 CHANGELOG 同源）
+TODO.md            待办与重构计划（决策点 / 验收标准 / 里程碑）
 ```
 
 ### 1.2 运行方式
 
 | 场景 | 命令 | SW |
 |---|---|---|
-| 本地单文件 | 双击 `survival.html` | 不注册（`file://`） |
+| 本地单文件 | 双击 `survival.html`（**非验收项**，见 §0.4） | 不注册（`file://`） |
 | 本地服务器 | `python3 -m http.server 3000` | 注册（localhost 视为安全上下文） |
 | 线上 PWA | https 部署 | 注册 + 可安装 + 离线 |
 
@@ -243,7 +272,7 @@ Boss 战为多回合自动对拼（`fight()` 内 while 循环），普通怪单�
 
 - **强化**（`UPGRADES`）：武器/斧头/鱼竿/捕兽夹，上限 **15 级**
   - 成本：`base × (当前等级 + 1)`；**Lv.10 起额外消耗符石与合金**（`rune = lv-9`、`alloy = round((lv-9)×1.5)`）
-  - 效果：武器 +10% 攻击/级，斧 +12% 产量/级，鱼竿 +7% 成功率/级，捕兽夹 +18% 产量/级
+  - 效果：武器 +10% 攻击/级，斧 +10% 产量/级，鱼竿 +6% 成功率/级，捕兽夹 +15% 产量/级
 - **附魔**（`ENCHANTS`）：需先造附魔台；台等级上限 **5**，因此附魔等级受台限制
   - 🗡锋利：武器伤害 +10%/级 · 🛡保护：受击 −8%/级 · ⚒效率：采集 +8%/级
   - 成本：`base × (当前等级 + 1)`
@@ -260,7 +289,7 @@ Boss 战为多回合自动对拼（`fight()` 内 while 循环），普通怪单�
 
 | 池 | 数量 | 说明 |
 |---|---|---|
-| `EXPLORE_EVENTS` | 32 | 按 `w` 权重抽；带 `zone` 的只在对应区域出现 |
+| `EXPLORE_EVENTS` | 28 | 按 `w` 权重抽；带 `zone` 的只在对应区域出现 |
 | `NIGHT_EVENTS` | 4 | 夜袭 / 寒夜 / 小偷 / 宁静 |
 | `LUCK_EVENTS` | 18 | 🎲幸运方块效果：资源/金币/陷阱/疾病/爆炸/稀有物品 |
 | 月圆 | 每 15 天 | 野狗/灰狼进化；可主动出击迎战狼群或加固营地 |
@@ -466,16 +495,17 @@ if (!canSW) return;   // file:// 直接打开：不注册、不报错、游戏�
 
 ### 8.1 测试约定
 
-- 目录：`tests/`（与项目同级，存放各类专项与回归测试；不进发布包）
+- 目录：`tests/`（与项目同级，**随仓库入库**；不进发布包）——`node_modules/` 由 `.gitignore` 排除，本地用 `npm ci` 生成
 - 命名：`v<版本号去点>.js`（如 `v1300.js`），回归测试用固定名（`version.js` / `layout.js` / `regress.js` 等）
 - 技术：`puppeteer-core` + 系统 Chromium（`/usr/bin/chromium`），**真实浏览器**，不用 jsdom
+- 路径：项目根 / 游戏 URL / 浏览器路径统一从 `tests/_env.js` 取（`ROOT` / `URL` / `CHROMIUM`），**禁止硬编码绝对路径**；浏览器路径可用环境变量 `CHROMIUM_PATH` 覆盖
 - 写法骨架：
 
 ```js
 const puppeteer=require('puppeteer-core');
 let pass=0, fail=0;
 const ok=(c,n)=>{ c?(pass++,console.log('✅ '+n)):(fail++,console.log('❌ '+n)); };
-// ... 打开 survival.html（file://）或本地 http 服务
+// ... 起本地 http 服务（python3 -m http.server）打开 survival.html
 // 断言 → 结束时 console.log(`专项: ${pass} 通过 / ${fail} 失败`); process.exit(fail?1:0);
 ```
 
@@ -488,7 +518,8 @@ const ok=(c,n)=>{ c?(pass++,console.log('✅ '+n)):(fail++,console.log('❌ '+n)
 ### 8.2 发布流程（`release.sh`）
 
 ```
-1. 跑 15 个测试文件（失败即中止）
+0. 跑 `node tools/check-ssot.mjs`（单一数据源校验，只读；不一致即中止，见 §0.5）
+1. 跑 `tests/` 下 15 个测试文件（缺依赖 / 缺测试文件 / 0 断言 / 有失败 → 一律中止）
 2. 提取 GAME_VERSION / BUILD_CODE
 3. 把 BUILD 注入 sw.js，重写 version.json，回读校验三处一致
 4. git commit "v<ver> · <说明>"
@@ -605,10 +636,10 @@ const ok=(c,n)=>{ c?(pass++,console.log('✅ '+n)):(fail++,console.log('❌ '+n)
 
 | 键 | 名称 | 每级效果 | 基础成本 | 解锁前置 |
 |---|---|---|---|---|
-| `weapon` | 强化武器 | 武器伤害 +12% | 金属 4 + 皮革 1 | 钢刀 |
-| `axe` | 强化斧头 | 砍柴产量 +12% | 金属 2 + 木 2 | 铁斧 |
-| `rod` | 强化鱼竿 | 捕鱼成功率 +7% | 金属 1 | 鱼竿 |
-| `trap` | 强化捕兽夹 | 捕兽夹产量 +18% | 金属 1 | 捕兽夹 |
+| `weapon` | 强化武器 | 武器伤害 +10% | 金属 4 + 皮革 1 | 钢刀 |
+| `axe` | 强化斧头 | 砍柴产量 +10% | 金属 2 + 木 2 | 铁斧 |
+| `rod` | 强化鱼竿 | 捕鱼成功率 +6% | 金属 1 | 鱼竿 |
+| `trap` | 强化捕兽夹 | 捕兽夹产量 +15% | 金属 1 | 捕兽夹 |
 
 成本 = `基础成本 × (当前等级 + 1)`；**Lv.10 起额外** `符石 = lv−9`、`合金 = round((lv−9)×1.5)`（Lv.10 各 1，Lv.15 各 6/9）。
 
@@ -872,6 +903,6 @@ const ok=(c,n)=>{ c?(pass++,console.log('✅ '+n)):(fail++,console.log('❌ '+n)
 | 🥈银锭 | 🔥 炼锭（铁匠炉，银矿石 → 银锭） |
 | 🥇金锭 | 🔥 炼锭（铁匠炉，金矿石 → 金锭）· 🛒 黑市 500 |
 | 📜经验药水 | 🛒 黑市 300 / 商人 300 |
-| 🎰抽奖券 | 🛒 黑市 800（×5 则 3500）· 商人 800 / 1500×5 · 🐟 钓鱼 / 机器猫 |
-| 🧪生命药剂 | 🛒 黑市 200 · 商人 200 · 机器猫 300 金（唯一来源，游戏内无制作配方） |
+| 🎰抽奖券 | 🛒 黑市 800（×5 则 3500）· 🛒 流浪商人 800 / 1500×5 · 🤖 机器猫（好感 2 级 500 金+合金 5 / 5 级 1800 金+合金 10） |
+| 🧪生命药剂 | 🛒 黑市 200 · 🛒 流浪商人 200 · 🤖 机器猫（好感 2 级）300 金；游戏内无制作配方 |
 

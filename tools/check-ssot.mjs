@@ -20,6 +20,8 @@ const exists = (p) => existsSync(join(ROOT, p));
 
 let pass = 0;
 const fails = [];
+/** checkLockfile 里用来避免与记录器 bad() 同名 */
+let bad_ = () => {};
 const warns = [];
 
 function ok(name, detail) {
@@ -30,6 +32,7 @@ function bad(name, detail) {
   fails.push({ name, detail });
   console.log(`  ❌ ${name}${detail ? ' — ' + detail : ''}`);
 }
+bad_ = bad;
 function warn(name, detail) {
   warns.push({ name, detail });
   console.log(`  ⚠️  ${name}${detail ? ' — ' + detail : ''}`);
@@ -41,7 +44,7 @@ function warn(name, detail) {
 
 /* ---------- 1. 版本号 / 构建号 ---------- */
 function checkVersion() {
-  console.log('[1/6] 版本与构建号');
+  console.log('[1/7] 版本与构建号');
   const html = read('survival.html');
   const sw = read('sw.js');
   const meta = readJson('version.json');
@@ -64,7 +67,7 @@ function checkVersion() {
 
 /* ---------- 2. CHANGELOG ---------- */
 function checkChangelog() {
-  console.log('[2/6] CHANGELOG.md ↔ 内联数组');
+  console.log('[2/7] CHANGELOG.md ↔ 内联数组');
   if (!exists('CHANGELOG.md')) return bad('缺少 CHANGELOG.md');
   const md = parseChangelogMd(read('CHANGELOG.md'));
   const inline = parseChangelogInline(read('survival.html'));
@@ -97,7 +100,7 @@ function checkChangelog() {
 
 /* ---------- 3. 图标 ---------- */
 function checkIcons() {
-  console.log('[3/6] 图标清单');
+  console.log('[3/7] 图标清单');
   const manifest = readJson('manifest.json');
   const html = read('survival.html');
   const listed = (manifest.icons || []).map((i) => String(i.src).replace(/^\.\//, ''));
@@ -122,7 +125,7 @@ function checkIcons() {
 
 /* ---------- 4. 启动图 ---------- */
 function checkSplash() {
-  console.log('[4/6] iOS 启动图');
+  console.log('[4/7] iOS 启动图');
   const html = read('survival.html');
   const refs = [...html.matchAll(/<link rel="apple-touch-startup-image"[^>]*href="\.\/([^"]+)"/g)].map((m) => m[1]);
   for (const p of refs) {
@@ -138,7 +141,7 @@ function checkSplash() {
 
 /* ---------- 5. SW 预缓存清单 ---------- */
 function checkSwAssets() {
-  console.log('[5/6] Service Worker 预缓存清单');
+  console.log('[5/7] Service Worker 预缓存清单');
   const sw = read('sw.js');
   const block = /const ASSETS = \[([\s\S]*?)\];/.exec(sw)?.[1];
   if (!block) return bad('sw.js 里找不到 ASSETS 数组');
@@ -157,7 +160,7 @@ function checkSwAssets() {
 
 /* ---------- 6. 资源定义 ---------- */
 function checkResources() {
-  console.log('[6/6] 资源定义（5 处派生）');
+  console.log('[6/7] 资源定义（5 处派生）');
   const html = read('survival.html');
 
   const names = objectBody(html, 'RES_NAMES');
@@ -206,6 +209,26 @@ function checkResources() {
   if (okAll) ok('资源键集合一致', `${kNames.size} 种资源`);
 }
 
+/* ---------- 7. 依赖源地址 ---------- */
+// 为什么查这个：如果 package-lock.json 里的 tarball 指向国内镜像（如某云），
+// 本地装得快，但 GitHub Actions（境外 Runner）会变慢甚至失败。
+function checkLockfile() {
+  console.log('[7/7] package-lock.json 源地址');
+  if (!exists('package-lock.json')) {
+    warn('没有 package-lock.json（CI 的 npm ci 需要它）');
+    return;
+  }
+  const raw = read('package-lock.json');
+  const urls = [...raw.matchAll(/"resolved":\s*"([^"]+)"/g)].map((m) => m[1]);
+  const bad = urls.filter((u) => !u.startsWith('https://registry.npmjs.org/'));
+  if (bad.length) {
+    const hosts = [...new Set(bad.map((u) => { try { return new URL(u).host; } catch { return u; } }))];
+    bad_(`lock 里有 ${bad.length} 个非官方源地址`, hosts.join(', '));
+  } else {
+    ok('全部指向官方 registry', `${urls.length} 个 tarball`);
+  }
+}
+
 /* ---------- 主流程 ---------- */
 console.log(`SSOT 校验（只读） · ${ROOT}\n`);
 try {
@@ -215,6 +238,7 @@ try {
   checkSplash();
   checkSwAssets();
   checkResources();
+  checkLockfile();
 } catch (err) {
   bad('脚本异常', err && err.message ? err.message : String(err));
 }

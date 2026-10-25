@@ -65,6 +65,7 @@
 | 更新日志 | `CHANGELOG.md` | `survival.html` 的 `CHANGELOG` 数组 |
 | 图标 / 启动图清单 | `icons/`、`splash/` 目录 | `manifest.json` 的 `icons[]`、`survival.html` 的 `<link rel=…>` |
 | SW 预缓存清单 | 构建产物目录 | `sw.js` 的 `ASSETS` |
+| 依赖源地址 | 官方 `registry.npmjs.org` | `package-lock.json` 的 `resolved`（**禁止提交镜像地址**，否则 GitHub Actions 装包会慢/失败） |
 | 资源定义（名称 / 卖价 / 获取途径 / 初始值） | `src/core/data/resources.mjs` 的 `RESOURCES` 表 | `resNames()` / `resPrices()` / `getWhere()` / `defaultRes()` 派生；旧文件里的 5 处由单测逐键对拍 |
 | 数值附录（附录 A–H） | 源码数据表 | `AGENT.md` 附录（应由脚本导出，不手抄） |
 

@@ -127,7 +127,71 @@
 
 | # | 任务 | 做法 | 验收 |
 |---|---|---|---|
-| 4.1 | `ui/render/*` 拆分 | **已完成第一批**：骨架 + 样式 + 状态条 + 13 个行动 + 自动循环 + 存档 + **区域切换** + **探索事件弹窗** + **战斗/Boss 弹窗** + **商人/机器猫菜单**；**待做**：制作面板、背包（进食/饮水/资源列表）、菜单（图鉴/导出导入/设置） | 构建 20 文件 / 1.26MB；`el()` 引用 15 个全部存在；探索 → 事件 → 结算闭环打通 |
+| 4.1 | `ui/render/*` 拆分 | **已完成**：骨架 + 样式 + 状态条 + 13 个行动 + 自动循环 + 存档 + 区域切换 + 探索事件弹窗 + 战斗/Boss 弹窗 + 商人/机器猫菜单 + **制作面板（22 配方）** + **背包（进食/饮水/资源/出售）**；**待做**：装备与强化（见 §4.1.1）、附魔、菜单（图鉴/导出导入/设置） | 构建 20 文件 / 1.26MB；`el()` 引用 16 个全部存在；采集 → 制作 → 生存 → 探索 → 战斗 → 交易闭环打通 |
+
+### 4.1.1 装备与强化面板（备忘：下次开工照这个做，别再重新设计）
+
+**位置**：不新开页签，接在「制作」页签内 —— `renderCraft()` 的配方列表之后追加两个分区（原版也是制作页里放装备/强化），复用 `.craft-item` 卡片样式。
+
+**core 已就绪，不用改逻辑**：
+
+| 用途 | 现成函数 / 数据 |
+|---|---|
+| 某部位当前材质 | `armorSlotMat(state, slot)`（`'none'` 表示空） |
+| 制作并穿上 | `craftArmor(state, slot, mat)` → `{logs, achievements:['armor1','armorSet'], refused}` |
+| 强化 | `upgradeItem(state, key)` → `{logs, achievements:['up1','stage'], refused, time:2}` |
+| 强化成本 | `upgradeCost(key, lv)`（Lv.10 起额外符石/合金） |
+| 数据 | `ARMOR_MATS`（6 档顺序）/ `ARMOR_MAT_INFO`（name/dmg/cost）/ `ARMOR_SLOTS`（4 部位）/ `UPGRADES`（4 项，max 15） |
+| 总减伤 | `armorDmgMult(state)`（可在装备区顶部显示"当前总减伤 xx%"） |
+
+**渲染规则**：
+
+1. **装备区**：4 个部位各一张卡。`idx = ARMOR_MATS.indexOf(当前材质)`，下一档是 `ARMOR_MATS[idx + 1]`（当前 `'none'` 时 idx=-1，下一档正好是 `leather`）。
+   - 卡片显示：`头盔 · 当前：🛡铁（减伤 0.92）` + 下一档成本（`金属 3/5 · 皮革 0/1`，缺的红字）
+   - 已是 `steel`（最后一档）→ 显示「已是最强」，无按钮
+   - 材料够才出「制作并穿上」按钮，`data-armor="slot:mat"`
+2. **强化区**：4 项各一张卡。
+   - 前置未做 → `需要先制作 🪔铁匠炉`（用 `RECIPES[u.need].name`）
+   - 已满级（`lv >= u.max`）→ 「已满级」
+   - 否则 → `Lv.N/15 · 成本`，材料够才出「强化到 Lv.N+1」，`data-upgrade="key"`
+3. 装备区顶部加一行总减伤：`🛡 当前总减伤 45%（受伤倍率 0.55）`，数据来自 `armorDmgMult(state)`。
+
+**点击处理**（在 `#actions` 的委托里加两个分支）：
+
+```js
+const armorBtn = target.closest('[data-armor]');
+if (armorBtn) { const [slot, mat] = armorBtn.dataset.armor.split(':'); /* craftArmor */ return; }
+const upBtn = target.closest('[data-upgrade]');
+if (upBtn) { /* upgradeItem */ return; }
+```
+
+两者都是：`refused` → `toast`；否则 `logs` 写日志 → `applyAchievements(r.achievements)` → （强化有 `time` 就 `passTime`）→ `renderAll()` → `save()`。
+
+**必须同时改的一处**：`applyAchievements()` 目前对 `'armorSet'` 是 `continue`（空转）。要补成：
+
+```js
+if (a === 'armorSet') { for (const l of checkArmorSet(G).logs) log(l.text, l.cls); }
+```
+
+（`checkArmorSet` 从 `core/achievements.mjs` import；它会写 `stats.setsWorn` 并触发 `set*` / `setsAll` / `armorAll`。）
+
+**新增 import**（`src/app.mjs`）：
+
+```js
+import { craftArmor, upgradeItem, armorSlotMat, armorDmgMult, upgradeCost } from './core/craft.mjs';
+import { UPGRADES } from './core/data/upgrades.mjs';
+import { ARMOR_MATS, ARMOR_MAT_INFO, ARMOR_SLOTS } from './core/data/armor.mjs';
+import { checkArmorSet } from './core/achievements.mjs';
+```
+
+**验收**：
+
+- 新档 → 4 部位全是「空」，第一档皮甲可做（皮革 6）；做完头盔后只有「胸甲」那张变成铜甲可做（升级链按部位独立）
+- 强化武器在没做钢刀时显示「需要先制作 ⚔️钢刀」；做了钢刀后能升到 Lv.15，Lv.10 之后成本里出现符石与合金
+- 穿满 4 件同材质 → 日志出现对应套装成就；6 套集齐 → `setsAll` + `armorAll`
+- 顶部总减伤数值随装备变化（0.885 → 0.522 → 叠符甲可到 0.1 下限）
+- `npm run build` 通过、`el()` 引用无缺失
+
 | 4.2 | `ui/dom.ts` 小部件 | 复用现有 `toast / log / modal` 形态，不另造一套 | 可视化回归截图（窄屏 390×844 与桌面各一张） |
 | 4.3 | 事件绑定集中化 | 替掉 HTML 内联 `onclick="fn()"`（当前有大量全局函数被内联引用） | 产物里 `onclick=` 出现次数 = 0；键盘/触控均可用 |
 | 4.4 | `dev/guard.ts` | 6100–6300 防崩溃（EBH 哨兵 + HTML 备份） | 故意让启动抛错，能出降级页并可一键恢复 |

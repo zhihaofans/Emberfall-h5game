@@ -67,6 +67,19 @@
 - **建议**：文案统一成"升到 11 级起额外消耗"。
 - **状态**：**待拍板**（`src/core/data/upgrades.mjs` 的注释已写清"11–15 级才真正需要"）。
 
+## 7. 击杀 Boss 时抛异常 → 奖励与成就全部不发
+
+- **位置**：`survival.html` · `fight()` 第 4339 行 `const b=combat.b; combat=null;`，第 4359 行又读 `combat.isPharaoh`
+- **现象**：`combat` 已被置为 `null`，再读 `.isPharaoh` 直接 `TypeError`。**只有"打死 Boss"这条路径会走到**，普通怪击杀不受影响（普通分支不读 `combat`）。
+- **影响**：
+  - 击杀兽王 / 法老时，`stats.bossKills` / `pharaohKills` 不增加、奖励不发、成就（boss / boss2 / boss3 / pharaoh1-3）不触发；
+  - 异常也会中断 `renderAll()` / `save()` / `checkDeath()`，界面停在战斗弹窗状态；
+  - 因为 Boss 战本身很难（要钢刀/铁甲 + 高等级），实际很少被触发，所以一直没被发现。
+- **复现**：`tests/unit/combat-fight.test.mjs` 里 `assert.throws(() => env.__fight('fight'), /isPharaoh/)`。
+- **建议**：把 `const isPharaoh = combat.isPharaoh;` 提到 `combat = null` 之前（一行修复）。
+- **影响面**：修好后 Boss 首杀才真正可完成（成就、奖励、Boss 三阶段成长链全部解锁）。属于**行为修复**，会让「兽王/法老」从"打不死"变成"打得死"。
+- **状态**：**已定 —— 等重构切换时生效**（2026-10-25）。`src/core/combat.mjs` 的新实现按"原意"工作（`isPharaoh` 走参数），旧的 `survival.html` 暂不改。
+
 ---
 
 ## 已修正的（非"设定"问题，属文案/文档错误，仅作记录）

@@ -110,7 +110,7 @@
 | 3.3 | `core/actions.mjs` | **已完成**：前置检查 `checkAction` / 精力结算 `payActionCost` / 13 个行动产出（进食·饮水·睡觉·治疗·取水·烹饪·烧水·砍柴·狩猎·熔炼·采矿·炼锭·钓鱼）+ `data/fishing.mjs` 掉落表；自动循环 `startAuto / stopAuto / nextAutoAction` | 单测 26 条：材料不足不扣精力（历史坑 #4）、27 组前置检查对拍、13 个行动**逐字段对拍**（含钓鱼五分支）、自动循环 6 条对拍 |
 | 3.4 | `core/craft.mjs` | `doCraft / craftArmor / upgradeItem / upgradeCost / recipeVisible / hasRes / spend / addRes` | 单测：22 配方解锁链、装备材质链、强化 10 级后额外消耗 |
 | 3.5 | `core/combat.mjs` | `weaponAtk / armorDmgMult / fight / startCombat / bossStats / pharaohStats` | 单测：伤害公式（含强化/附魔/技能）、减伤下限 0.1、Boss 三阶段 |
-| 3.6 | `core/achievements.mjs` | `checkMilestone` 白名单 + `checkZoneAchieve / checkStageAchieve / checkFishAchieve / checkArmorSet` | 单测：`MS` 里 76 个文案 id 与白名单**双向一致**（新增成就漏登记直接红） |
+| 3.6 | `core/achievements.mjs` | **已完成**：`checkMilestone`（数字=天数里程碑，字符串=白名单）+ `checkZoneAchieve / checkStageAchieve / checkFishAchieve / checkArmorSet`；数据在 `data/achievements.mjs`（MS 76 键 / 白名单 69 条 / 天数奖励 7 档） | 单测 10 条：数据对拍、**MS 字符串键 ↔ 白名单双向一致**、天数里程碑（3/7/15/30/60/100/180）、重复触发幂等、区域/阶段/钓鱼/套装全对拍 |
 | 3.7 | `core/npc.mjs` | `doraInfo / addDoraFav / doraGoods / doraGiftOpts …`、流浪商人 | 单测：好感 6 级门槛、按等级解锁商品、金币不足禁用 |
 | 3.8 | `core/explore.mjs` | `doExplore / rollExploreEvent / resolveEvent / lostOpts / pickMerchantGoods`、`EXPLORE_EVENTS` / `NIGHT_EVENTS` | 单测：按 `w` 权重抽（打桩随机源）、`disabled` 选项不消耗事件、区域特色怪 45% |
 | 3.9 | `core/wiki.mjs` | `wikiSeen / wikiUnlocked / legacyBestiary` | 单测：遭遇即解锁、老档补解锁、未解锁字段显示遮罩 |

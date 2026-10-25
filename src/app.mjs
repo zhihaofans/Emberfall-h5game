@@ -11,6 +11,9 @@ import { createNewState, parseSavePayload, serialize } from './core/save.mjs';
 import { ACTIONS } from './core/data/actions.mjs';
 import { SEASONS, WEATHERS, seasonOf, rollWeather, dailyConsume, advanceHour, applyPassive } from './core/time.mjs';
 import { resNames, RESOURCES, resPrices } from './core/data/resources.mjs';
+import { RECIPES } from './core/data/recipes.mjs';
+import { SKILL_NAMES } from './core/data/skills.mjs';
+import { doCraft, recipeVisible, hasRes } from './core/craft.mjs';
 import {
   checkAction, payActionCost, interruptsAuto,
   startAuto, stopAuto, nextAutoAction,
@@ -21,7 +24,7 @@ import { ZONES } from './core/data/zones.mjs';
 import { exploreZone, rollExploreEvent } from './core/explore.mjs';
 import { resolveOption, lostOpts } from './core/explore-events.mjs';
 import { pickMonster, fightRound, fightBoss, flee, bossFlee, bait, bossStats, pharaohStats } from './core/combat.mjs';
-import { checkMilestone } from './core/achievements.mjs';
+import { checkMilestone, checkStageAchieve } from './core/achievements.mjs';
 import { pickMerchantGoods, canTrade, buyMerchant, doraInfo, doraGoods, DORA_GIFTS, canGift, giftDora, canBuyDoraGood, buyDoraGood, addDoraFav } from './core/npc.mjs';
 import { markEncounter, wikiProgress } from './core/wiki.mjs';
 
@@ -153,8 +156,86 @@ export function renderAll() {
 
 /** 按当前页签渲染主区域 */
 function renderMain() {
+  const box = el('actions');
+  if (!box) return;
+  box.classList.remove('bag-mode', 'craft-mode');
   if (curTab === 'bag') renderBag();
+  else if (curTab === 'craft') renderCraft();
   else renderActions();
+}
+
+/** 成就 id → 日志（'stage' 是"阶段成就检查"的标记，不是成就 id） */
+function applyAchievements(list) {
+  for (const a of list || []) {
+    if (a === 'stage') {
+      for (const l of checkStageAchieve(G).logs) log(l.text, l.cls);
+    } else if (a === 'armorSet') {
+      // 套装检查在 core/craft 里由 UI 触发
+      continue;
+    } else {
+      for (const l of checkMilestone(G, a).logs) log(l.text, l.cls);
+    }
+  }
+}
+
+/** 制作面板：22 配方按阶分组 */
+function renderCraft() {
+  const box = el('actions');
+  if (!box) return;
+  box.classList.add('craft-mode');
+
+  const tiers = {};
+  for (const id in RECIPES) {
+    const r = RECIPES[id];
+    if (!recipeVisible(G, id)) continue;
+    (tiers[r.tier] = tiers[r.tier] || []).push([id, r]);
+  }
+
+  const parts = [];
+  for (const t of Object.keys(tiers).sort()) {
+    parts.push(`<div class="craft-tier">第 ${t} 阶</div>`);
+    for (const [id, r] of tiers[t]) {
+      const owned = !!G.items[id];
+      const lvOk = !r.needLv || (r.skill && (G.skills[r.skill]?.lvl || 1) >= r.needLv);
+      const needOk = !r.need || !!G.items[r.need];
+      const matOk = hasRes(G, r.cost);
+      const can = !owned && lvOk && needOk && matOk;
+
+      let body = '';
+      if (owned) {
+        body = '<div class="mat" style="color:var(--ok)">✅ 已制作</div>';
+      } else if (!needOk) {
+        body = `<div class="mat" style="color:var(--warn)">需要先制作 ${RECIPES[r.need].name}</div>`;
+      } else if (!lvOk) {
+        const cur = G.skills[r.skill]?.lvl || 1;
+        body = `<div class="mat" style="color:var(--warn)">需要 ${SKILL_NAMES[r.skill] || r.skill} Lv.${r.needLv}（当前 Lv.${cur}）</div>`;
+      } else {
+        body = '<div class="mat">' + Object.keys(r.cost).map((k) => {
+          const have = G.res[k] || 0;
+          const need = r.cost[k];
+          return `<span style="color:${have >= need ? 'var(--txt-dim)' : 'var(--bad)'}">${name(k)} ${have}/${need}</span>`;
+        }).join(' · ') + '</div>';
+      }
+
+      parts.push(`<div class="craft-item">
+        <div class="name">${r.name}<span class="desc">${r.desc}</span></div>
+        ${body}
+        ${can ? `<button class="make" data-craft="${id}">制作（${r.time} 小时）</button>` : ''}
+      </div>`);
+    }
+  }
+  box.innerHTML = parts.join('');
+}
+
+/** 制作一件 */
+function craftItem(id) {
+  const r = doCraft(G, id);
+  if (r.refused) return toast(r.refused);
+  for (const l of r.logs) log(l.text, l.cls);
+  applyAchievements(r.achievements);
+  if (r.time) passTime(r.time);
+  renderAll();
+  save();
 }
 
 /** 背包：进食/饮水 + 资源列表 + 出售 */
@@ -481,7 +562,7 @@ function resolveEventIdx(i) {
     hideEvent();
     const r = giftDora(G, opt._gift);
     for (const l of r.logs) log(l.text, l.cls);
-    for (const id of r.achievements || []) for (const l of checkMilestone(G, id).logs) log(l.text, l.cls);
+    applyAchievements(r.achievements);
     renderAll(); save(); checkDeath();
     return;
   }
@@ -490,7 +571,7 @@ function resolveEventIdx(i) {
     const r = buyDoraGood(G, opt._doraGood);
     if (r.refused) log(r.refused, 'warn');
     for (const l of r.logs) log(l.text, l.cls);
-    for (const id of r.achievements || []) for (const l of checkMilestone(G, id).logs) log(l.text, l.cls);
+    applyAchievements(r.achievements);
     renderAll(); save(); checkDeath();
     return;
   }
@@ -510,7 +591,7 @@ function resolveEventIdx(i) {
   const r = resolveOption(G, { ...(ev || {}), opts }, i);
   if (r.refused) log(r.refused, 'warn');
   for (const l of r.logs) log(l.text, l.cls);
-  for (const id of r.achievements || []) for (const l of checkMilestone(G, id).logs) log(l.text, l.cls);
+  applyAchievements(r.achievements);
 
   if (r.combat && r.combat.length) {
     const c = r.combat[0] || {};
@@ -565,7 +646,7 @@ function doCombatAction(act) {
   }
   if (!r) return;
   for (const l of r.logs) log(l.text, l.cls);
-  for (const id of r.achievements || []) for (const l of checkMilestone(G, id).logs) log(l.text, l.cls);
+  applyAchievements(r.achievements);
   renderAll();
   save();
   checkDeath();
@@ -600,6 +681,9 @@ export function boot() {
 
     const sellBtn = target.closest('[data-sell]');
     if (sellBtn && !sellBtn.disabled) { sellRes(sellBtn.dataset.sell); return; }
+
+    const craftBtn = target.closest('[data-craft]');
+    if (craftBtn) { craftItem(craftBtn.dataset.craft); return; }
 
     const bagBtn = target.closest('[data-bag-act]');
     if (bagBtn) {
@@ -650,7 +734,7 @@ export function boot() {
         const r = addDoraFav(G, 1);
         for (const l of r.logs) log(l.text, l.cls);
         log('🤖 「前辈的百宝袋……我可差远了。」', 'info');
-        for (const id of r.achievements || []) for (const l of checkMilestone(G, id).logs) log(l.text, l.cls);
+        applyAchievements(r.achievements);
         renderAll(); save();
       } else hideEvent();
       return;

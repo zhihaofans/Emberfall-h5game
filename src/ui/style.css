@@ -295,3 +295,12 @@ textarea#exportArea{
 #actions.bag-mode{display:block;max-height:60vh}
 #actions.bag-mode .actbtn{width:100%;flex-direction:row;justify-content:space-between;padding:10px 12px;margin-bottom:6px}
 #actions.bag-mode .actbtn .sub{margin-left:auto}
+
+/* —— P2 新增：制作面板 —— */
+#actions.craft-mode{display:block;max-height:62vh}
+.craft-tier{font-size:11px;color:var(--txt-faint);margin:8px 2px 4px}
+.craft-item{border:1px solid var(--line);border-radius:9px;background:var(--bg3);padding:8px 10px;margin-bottom:6px}
+.craft-item .name{font-size:13px;color:var(--txt)}
+.craft-item .name .desc{font-size:11px;color:var(--txt-faint);margin-left:6px}
+.craft-item .mat{font-size:11.5px;margin-top:3px}
+.craft-item .make{width:100%;margin-top:6px;padding:7px;border-radius:7px;border:1px solid var(--accent2);background:var(--accent);color:#1a1208;font-size:12.5px;font-weight:700;cursor:pointer}

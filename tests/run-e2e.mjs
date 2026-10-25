@@ -68,12 +68,15 @@ for (const f of files) {
 
   if (crashed && fail === 0) {
     const tail = out.trim().split('\n').slice(-3).join(' | ');
-    console.log(`     运行异常：${r.error ? r.error.message : r.signal || 'exit ' + r.status}${tail ? ' · ' + tail : ''}`);
+    const why = `${r.error ? r.error.message : r.signal || 'exit ' + r.status}${tail ? ' · ' + tail : ''}`;
+    console.log(`     运行异常：${why}`);
+    // GitHub Actions 会把这行变成 annotation，便于匿名 API 读出失败原因
+    console.log(`::error file=tests/${f}::运行异常（0 断言）：${why.slice(0, 200)}`);
     results.push({ f, crashed: true });
   } else if (fail) {
-    for (const line of out.split('\n').filter((l) => l.includes('❌')).slice(0, 5)) {
-      console.log('     ' + line.trim());
-    }
+    const detail = out.split('\n').filter((l) => l.includes('❌')).slice(0, 5);
+    for (const line of detail) console.log('     ' + line.trim());
+    console.log(`::error file=tests/${f}::${fail} 项断言失败：${detail[0] ? detail[0].trim().slice(0, 180) : ''}`);
     results.push({ f, crashed: false });
   }
 }
@@ -86,6 +89,7 @@ if (!totalPass && !totalFail) {
 }
 if (bad) {
   console.log(`结果：${bad}/${files.length} 个文件有问题 · 共 ${totalPass} 通过 / ${totalFail} 失败`);
+  console.log(`::error::e2e 失败：${bad}/${files.length} 个文件（明细见上面的 annotation）`);
   process.exit(1);
 }
 console.log(`结果：全部通过 · ${files.length} 个文件 / ${totalPass} 项断言`);

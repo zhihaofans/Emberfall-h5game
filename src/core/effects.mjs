@@ -9,6 +9,9 @@
 //   { op:'set',   field:'hp', value:100 }     字段直接赋值（hp / ill / day …）
 //   { op:'delta', field:'hp', n:-20, min:1 }  数值增减并夹取
 //   { op:'steal', n:[3,8] }                   特殊：随机偷一种资源
+//   { op:'random', branches:[{w, effects}] }  按权重随机走一组效果
+//   { op:'combat', night?, beasts? }          触发战斗（由上层发起）
+//   { op:'achievement', id }                  触发成就
 //   { op:'log',   text:'…', cls:'good' }      产出一条日志（支持 {res:key} 占位）
 //
 // 执行器只改传入的 state、返回待写入的日志，**不碰 DOM、不碰 localStorage**。
@@ -20,7 +23,7 @@ import { RECIPES } from './data/recipes.mjs';
 
 /**
  * @typedef {Object} Effect
- * @property {'res'|'gold'|'set'|'delta'|'steal'|'log'} op
+ * @property {'res'|'gold'|'set'|'delta'|'steal'|'random'|'branch'|'combat'|'achievement'|'learnRecipe'|'log'} op
  * @property {string} [res]
  * @property {number} [n]
  * @property {number[]} [n2]
@@ -28,6 +31,10 @@ import { RECIPES } from './data/recipes.mjs';
  * @property {any} [value]
  * @property {number} [min]
  * @property {number} [max]
+ * @property {any[]} [branches]
+ * @property {boolean} [night]
+ * @property {boolean} [beasts]
+ * @property {string} [id]
  * @property {string} [text]
  * @property {string} [cls]
  */
@@ -47,6 +54,10 @@ import { RECIPES } from './data/recipes.mjs';
  */
 export function applyEffects(state, effects, ctx = {}) {
   const random = ctx.random ?? Math.random;
+  /** @type {any[]} */
+  const combat = ctx.combat ?? [];
+  /** @type {string[]} */
+  const achievements = ctx.achievements ?? [];
   const rnd = ctx.rnd ?? ((a, b) => Math.floor(random() * (b - a + 1)) + a);
   /** @type {LogEntry[]} */
   const logs = [];
@@ -79,9 +90,11 @@ export function applyEffects(state, effects, ctx = {}) {
         if (unowned.length) {
           const pick = unowned[Math.floor(random() * unowned.length)];
           state.items[pick] = true;
-          logs.push({ text: `你学会了 ${RECIPES[pick].name} 的制作方法！`, cls: 'good' });
+          // 文案可定制：{name} 会被替换成配方名
+          const tpl = e.log || '你学会了 {name} 的制作方法！';
+          logs.push({ text: String(tpl).replace('{name}', RECIPES[pick].name), cls: 'good' });
         } else {
-          logs.push({ text: '图纸已经看不清了。', cls: 'warn' });
+          logs.push({ text: e.failText || '图纸已经看不清了。', cls: 'warn' });
         }
         break;
       }
@@ -110,6 +123,30 @@ export function applyEffects(state, effects, ctx = {}) {
         }
         break;
       }
+      case 'random': {
+        const branches = /** @type {any[]} */ (e.branches) || [];
+        const pool = [];
+        for (const b of branches) for (let i = 0; i < (b.w || 1); i++) pool.push(b);
+        const pick = pool[Math.floor(random() * pool.length)];
+        if (pick) logs.push(...applyEffects(state, pick.effects || [], ctx));
+        break;
+      }
+      case 'branch': {
+        // 条件分支：{ if: { field, gte/lte }, then:[…], else:[…] }
+        const cond = e.if || {};
+        const cur = Number(state[String(cond.field)]) || 0;
+        let hit = true;
+        if (cond.gte !== undefined) hit = hit && cur >= cond.gte;
+        if (cond.lte !== undefined) hit = hit && cur <= cond.lte;
+        logs.push(...applyEffects(state, (hit ? e.then : e.else) || [], ctx));
+        break;
+      }
+      case 'combat':
+        combat.push({ night: !!e.night, forceBeasts: !!e.beasts });
+        break;
+      case 'achievement':
+        achievements.push(String(e.id));
+        break;
       case 'log':
         logs.push({ text: fill(String(e.text)), cls: e.cls || 'sys' });
         break;
@@ -117,7 +154,8 @@ export function applyEffects(state, effects, ctx = {}) {
         throw new Error(`未知的效果指令: ${e.op}`);
     }
     // 指令自带的日志模板（支持 {n} / {res:key}）
-    if (e.log) logs.push({ text: fill(e.log, nval), cls: e.cls || 'sys' });
+    // learnRecipe 自己会写日志（还带 {name}），这里跳过避免重复
+    if (e.log && e.op !== 'learnRecipe') logs.push({ text: fill(e.log, nval), cls: e.cls || 'sys' });
   }
   return logs;
 }

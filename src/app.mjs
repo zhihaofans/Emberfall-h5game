@@ -13,9 +13,15 @@ import { SEASONS, WEATHERS, seasonOf, rollWeather, dailyConsume, advanceHour, ap
 import { resNames, RESOURCES, resPrices } from './core/data/resources.mjs';
 import { RECIPES } from './core/data/recipes.mjs';
 import { SKILL_NAMES } from './core/data/skills.mjs';
-import { doCraft, recipeVisible, hasRes, craftArmor, upgradeItem, armorSlotMat, armorDmgMult, nextArmorMat, armorMatVisible } from './core/craft.mjs';
+import {
+  doCraft, recipeVisible, hasRes, craftArmor, upgradeItem,
+  armorSlotMat, armorDmgMult, nextArmorMat, armorMatVisible,
+  enchantItem, upgradeEnchantTbl,
+} from './core/craft.mjs';
 import { UPGRADES, upgradeCost } from './core/data/upgrades.mjs';
-import { ARMOR_MAT_INFO, ARMOR_SLOTS } from './core/data/armor.mjs';
+import {
+  ARMOR_MAT_INFO, ARMOR_SLOTS, ENCHANTS, ENCHANT_TBL_MAX, enchantCost, enchantTblCost,
+} from './core/data/armor.mjs';
 import {
   checkAction, payActionCost, interruptsAuto,
   startAuto, stopAuto, nextAutoAction,
@@ -301,7 +307,62 @@ function renderUpgrade(parts) {
   }
 }
 
-/** 制作面板：22 配方按阶分组 + 装备 / 强化（TODO §4.1.1） */
+/** 附魔区：附魔台（等级 = 附魔上限）+ 3 种附魔
+ * @param {string[]} parts */
+function renderEnchant(parts) {
+  parts.push('<div class="craft-sep" id="craftEn">🔮 附魔（需附魔台 · 附魔台等级 = 附魔上限）</div>');
+
+  // 还没做附魔台：只提示怎么解锁，不给按钮（避免点了没反应的入口）
+  if (!G.items.enchantTbl) {
+    const r = RECIPES.enchantTbl;
+    parts.push(`<div class="craft-item">
+      <div class="name">🔮附魔台<span class="desc">${r.desc}</span></div>
+      <div class="mat" style="color:var(--warn)">需要先制作 🔮附魔台 · ${costLine(r.cost)}</div>
+    </div>`);
+    return;
+  }
+
+  // —— 附魔台本身 ——
+  const tblLv = G.enchant.tblLv || 0;
+  let tblBody;
+  let tblBtn = '';
+  if (tblLv >= ENCHANT_TBL_MAX) {
+    tblBody = `<div class="mat" style="color:var(--ok)">已满级 · 可附魔至 ${ENCHANT_TBL_MAX} 级</div>`;
+  } else {
+    const cost = enchantTblCost(tblLv);
+    tblBody = `<div class="mat">Lv.${tblLv}/${ENCHANT_TBL_MAX} · ${costLine(cost)}</div>`;
+    if (hasRes(G, cost)) tblBtn = `<button class="make" data-enchtbl="1">升级附魔台到 Lv.${tblLv + 1}</button>`;
+  }
+  parts.push(`<div class="craft-item">
+    <div class="name">🔮附魔台<span class="desc">升级解锁更高级附魔</span></div>
+    ${tblBody}${tblBtn}
+  </div>`);
+
+  // —— 3 种附魔（上限 = 附魔台等级）——
+  for (const kind in ENCHANTS) {
+    const e = ENCHANTS[kind];
+    const lv = G.enchant[kind] || 0;
+
+    let body;
+    let btn = '';
+    if (lv >= ENCHANT_TBL_MAX) {
+      body = `<div class="mat" style="color:var(--ok)">Lv.${lv} 已满级</div>`;
+    } else if (lv >= tblLv) {
+      body = `<div class="mat" style="color:var(--warn)">Lv.${lv}/${tblLv} · 需先把附魔台升到 Lv.${lv + 1}</div>`;
+    } else {
+      const cost = enchantCost(kind, lv);
+      body = `<div class="mat">Lv.${lv}/${tblLv} · ${costLine(cost)}</div>`;
+      if (hasRes(G, cost)) btn = `<button class="make" data-enchant="${kind}">附魔到 Lv.${lv + 1}</button>`;
+    }
+
+    parts.push(`<div class="craft-item">
+      <div class="name">${e.name}<span class="desc">${e.desc}</span></div>
+      ${body}${btn}
+    </div>`);
+  }
+}
+
+/** 制作面板：22 配方按阶分组 + 装备 / 强化 / 附魔（TODO §4.1.1–4.1.2） */
 function renderCraft() {
   const box = el('actions');
   if (!box) return;
@@ -312,6 +373,7 @@ function renderCraft() {
     + '<button class="cnav" data-cnav="craft0">⚒ 制作</button>'
     + '<button class="cnav" data-cnav="craftArmor">🛡 装备</button>'
     + '<button class="cnav" data-cnav="craftUp">⬆ 强化</button>'
+    + '<button class="cnav" data-cnav="craftEn">🔮 附魔</button>'
     + '</div>',
   ];
 
@@ -356,6 +418,7 @@ function renderCraft() {
 
   renderArmor(parts);
   renderUpgrade(parts);
+  renderEnchant(parts);
   box.innerHTML = parts.join('');
 }
 
@@ -836,6 +899,12 @@ export function boot() {
 
     const upBtn = closestEl(e.target, '[data-upgrade]');
     if (upBtn) { finishCraftOp(upgradeItem(G, String(upBtn.dataset.upgrade))); return; }
+
+    const enchBtn = closestEl(e.target, '[data-enchant]');
+    if (enchBtn) { finishCraftOp(enchantItem(G, String(enchBtn.dataset.enchant))); return; }
+
+    const enchTblBtn = closestEl(e.target, '[data-enchtbl]');
+    if (enchTblBtn) { finishCraftOp(upgradeEnchantTbl(G)); return; }
 
     const bagBtn = closestEl(e.target, '[data-bag-act]');
     if (bagBtn) {

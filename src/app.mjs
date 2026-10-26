@@ -34,7 +34,8 @@ import { resolveOption, lostOpts } from './core/explore-events.mjs';
 import { pickMonster, fightRound, fightBoss, flee, bossFlee, bait, bossStats, pharaohStats } from './core/combat.mjs';
 import { checkMilestone, checkStageAchieve, checkArmorSet } from './core/achievements.mjs';
 import { pickMerchantGoods, canTrade, buyMerchant, doraInfo, doraGoods, DORA_GIFTS, canGift, giftDora, canBuyDoraGood, buyDoraGood, addDoraFav } from './core/npc.mjs';
-import { markEncounter } from './core/wiki.mjs';
+import { markEncounter, wikiProgress } from './core/wiki.mjs';
+import { monsterEntries, materialEntries } from './core/bestiary.mjs';
 
 // 版本号由构建注入（唯一源：仓库根 version.json）
 const APP_VERSION = __APP_VERSION__;
@@ -856,6 +857,236 @@ function doCombatAction(act) {
   checkDeath();
 }
 
+/* ------------------------------ 菜单与弹窗 ------------------------------ */
+
+/** 二次确认的回调（自绘确认框，不用 window.confirm：桩环境与 e2e 都能断言） */
+/** @type {(() => void) | null} */
+let pendingConfirm = null;
+/** 图鉴当前分页：'monster' | 'mats' */
+let curWikiTab = 'monster';
+
+/** 打开通用弹窗：锁背景滚动，防移动端页面被顶起 */
+function openModal() {
+  el('modal').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+/** 关闭弹窗：顺手收起移动端键盘，避免残留焦点 */
+function closeModal() {
+  el('modal').classList.remove('show');
+  el('evmask').classList.remove('show');
+  document.body.style.overflow = '';
+  const a = document.activeElement;
+  if (a && typeof /** @type {any} */ (a).blur === 'function') /** @type {any} */ (a).blur();
+}
+
+/** @param {string} html */
+function setModal(html) {
+  el('modalcard').innerHTML = html;
+  openModal();
+}
+
+/**
+ * 二次确认框。
+ * @param {string} title
+ * @param {string} text
+ * @param {string} okLabel
+ * @param {() => void} onOk
+ */
+function confirmModal(title, text, okLabel, onOk) {
+  pendingConfirm = onOk;
+  setModal(`
+    <h3>${title}</h3>
+    <div class="msub">${text}</div>
+    <button class="mbtn danger" data-confirm-ok="1">${okLabel}</button>
+    <button class="mbtn" data-close="1">取消</button>`);
+}
+
+/** 主菜单 */
+function openMenu() {
+  const state = G.dead ? '已死亡' : '生存中';
+  setModal(`
+    <h3>☰ 菜单</h3>
+    <div class="msub">末日余烬 v${APP_VERSION} · 第 ${G.day} 天 · ${state}</div>
+    <button class="mbtn" data-menu="wiki">📖 百科图鉴</button>
+    <button class="mbtn" data-menu="export">📤 导出存档</button>
+    <button class="mbtn" data-menu="import">📥 导入存档</button>
+    <button class="mbtn" data-menu="save">💾 手动保存</button>
+    <button class="mbtn" data-menu="newgame">🔄 新游戏</button>
+    <button class="mbtn danger" data-menu="clear">🗑 清除本地存档</button>
+    <button class="mbtn" data-close="1">关闭</button>`);
+}
+
+/** @param {string} act */
+function handleMenu(act) {
+  if (act === 'wiki') return openWiki();
+  if (act === 'export') return openExport();
+  if (act === 'import') return openImport();
+  if (act === 'save') { save(); closeModal(); toast('已保存'); return; }
+  if (act === 'newgame') {
+    return confirmModal('🔄 新游戏', '当前进度会被覆盖，且不可恢复。', '确定开始新游戏', startNewGame);
+  }
+  if (act === 'clear') {
+    return confirmModal('🗑 清除本地存档', '本地存档会被删除，游戏回到第 1 天。', '确定清除', clearSaveAndRestart);
+  }
+}
+
+/* ---------------- 百科图鉴 ---------------- */
+
+function openWiki() {
+  renderWiki();
+}
+
+function renderWiki() {
+  const isMonster = curWikiTab === 'monster';
+  const entries = isMonster ? monsterEntries(G) : materialEntries();
+  const prog = wikiProgress(G);
+  const sub = isMonster
+    ? `已解锁 ${prog.unlocked}/${prog.total} · 遭遇过才会显示数值`
+    : `${entries.length - 1} 种资源 + 附魔系统 · 全部可见`;
+
+  const on = 'flex:1;background:rgba(255,200,80,.18);border-color:var(--accent);color:var(--yellow)';
+  const off = 'flex:1';
+  const rows = entries.map((e) => wikiRowHtml(e, !isMonster)).join('');
+
+  setModal(`
+    <h3>📖 百科图鉴</h3>
+    <div class="msub">${sub}</div>
+    <div style="display:flex;gap:6px;margin:10px 0">
+      <button class="mbtn" style="${isMonster ? on : off}" data-wiki-tab="monster">👹 怪物图鉴</button>
+      <button class="mbtn" style="${isMonster ? off : on}" data-wiki-tab="mats">📦 材料百科</button>
+    </div>
+    <div style="max-height:46vh;overflow-y:auto">${rows}</div>
+    <button class="mbtn" data-close="1">关闭</button>`);
+}
+
+/**
+ * 图鉴单行。未解锁时只露名字，数值全部打码。
+ * @param {{id: string, head: string, tag?: string, lines: string[], seen?: boolean}} e
+ * @param {boolean} forceOpen 材料百科不参与解锁，直接展示
+ */
+function wikiRowHtml(e, forceOpen) {
+  const seen = forceOpen || !!e.seen;
+  const body = seen
+    ? e.lines.map((l) => `<div class="wiki-line">${l}</div>`).join('')
+    : '<div class="wiki-line">❤️ ？？？ · ⚔️ ？？？</div>'
+      + '<div class="wiki-line">🎁 ？？？</div>'
+      + '<div class="wiki-line faint">🤫 属性未知 · 遭遇后解锁</div>';
+  const tag = e.tag ? ` <span class="wiki-tag">${e.tag}</span>` : '';
+  const lock = seen ? '' : ' <span class="wiki-tag">🔒 未遭遇</span>';
+  return `<div class="wiki-row${seen ? ' done' : ''}">
+    <div class="wiki-head">${e.head}${tag}${lock}</div>
+    ${body}
+  </div>`;
+}
+
+/* ---------------- 导出 / 导入 ---------------- */
+
+/** @param {any} s */
+function escapeHtml(s) {
+  /** @type {Record<string, string>} */
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return String(s).replace(/[&<>"']/g, (c) => map[c] || c);
+}
+
+function openExport() {
+  const code = serialize(G, APP_VERSION);
+  setModal(`
+    <h3>📤 导出存档</h3>
+    <div class="msub">下面整段文本就是存档：复制保存，换设备时粘进「导入存档」即可</div>
+    <textarea id="exportArea" readonly>${escapeHtml(code)}</textarea>
+    <button class="mbtn primary" data-export-copy="1">📋 复制到剪贴板</button>
+    <button class="mbtn" data-export-download="1">⬇️ 下载为 .txt 文件</button>
+    <button class="mbtn" data-close="1">关闭</button>`);
+}
+
+function copyExport() {
+  const ta = /** @type {HTMLTextAreaElement|null} */ (el('exportArea'));
+  if (!ta) return;
+  ta.select();
+  const done = () => toast('已复制，请妥善保存');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(ta.value).then(done, () => fallbackCopy(done));
+  } else fallbackCopy(done);
+}
+
+/** @param {() => void} done */
+function fallbackCopy(done) {
+  try { document.execCommand('copy'); done(); } catch { toast('复制失败，请手动长按复制'); }
+}
+
+function downloadExport() {
+  const code = serialize(G, APP_VERSION);
+  const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ember_save_${G.day}d.txt`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  toast('已下载存档文件');
+}
+
+function openImport() {
+  setModal(`
+    <h3>📥 导入存档</h3>
+    <div class="msub">粘贴存档文本（兼容 EMBER / EMBER1 标识）· 会覆盖当前进度</div>
+    <textarea id="importArea" placeholder="粘贴存档代码…"></textarea>
+    <button class="mbtn primary" data-import-do="1">导入并覆盖当前进度</button>
+    <button class="mbtn" data-close="1">取消</button>`);
+}
+
+/**
+ * 从任意文本里抠出存档 JSON（容忍前后夹带说明文字）。
+ * @param {string} text
+ * @returns {any|null} 规范化后的状态，失败返回 null
+ */
+function parseImportText(text) {
+  const t = String(text || '').trim();
+  if (!t) return null;
+  const start = t.indexOf('{');
+  const end = t.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  try {
+    return parseSavePayload(JSON.parse(t.slice(start, end + 1)));
+  } catch {
+    return null;
+  }
+}
+
+function doImport() {
+  const ta = /** @type {HTMLTextAreaElement|null} */ (el('importArea'));
+  const parsed = parseImportText(ta ? ta.value : '');
+  if (!parsed) { toast('导入失败：存档代码无效'); return; }
+
+  G = parsed;
+  logBuffer.length = 0;
+  try { localStorage.setItem(SAVE_KEY, serialize(G, APP_VERSION)); } catch { /* 配额满则忽略 */ }
+  closeModal();
+  log('📥 存档导入成功！', 'good');
+  renderAll();
+  save();
+  toast('导入成功');
+}
+
+/* ---------------- 存档操作 ---------------- */
+
+function startNewGame() {
+  G = createNewState();
+  logBuffer.length = 0;
+  log(`末日余烬 v${APP_VERSION} · 新的一世`, 'info');
+  log('点击下方按钮开始行动；可以长按「自动」类行动进入放置模式。', 'sys');
+  closeModal();
+  renderAll();
+  save();
+  toast('新游戏开始');
+}
+
+function clearSaveAndRestart() {
+  try { localStorage.removeItem(SAVE_KEY); } catch { /* 忽略 */ }
+  startNewGame();
+  log('🗑 本地存档已清除。', 'sys');
+}
+
 /* ------------------------------ 启动 ------------------------------ */
 
 /**
@@ -965,8 +1196,30 @@ export function boot() {
   });
 
   el('activeStop')?.addEventListener('click', stopAutoLoop);
-  el('btnMenu')?.addEventListener('click', () => {
-    toast(G.dead ? '你已死亡，重新加载页面开始新的一世' : '菜单功能开发中');
+  el('btnMenu')?.addEventListener('click', openMenu);
+
+  el('modal')?.addEventListener('click', (e) => {
+    const closeBtn = closestEl(e.target, '[data-close]');
+    if (closeBtn) { closeModal(); return; }
+
+    const okBtn = closestEl(e.target, '[data-confirm-ok]');
+    if (okBtn) {
+      const fn = pendingConfirm;
+      pendingConfirm = null;
+      closeModal();
+      if (fn) fn();
+      return;
+    }
+
+    const menuBtn = closestEl(e.target, '[data-menu]');
+    if (menuBtn) { handleMenu(String(menuBtn.dataset.menu)); return; }
+
+    const wtab = closestEl(e.target, '[data-wiki-tab]');
+    if (wtab) { curWikiTab = String(wtab.dataset.wikiTab); renderWiki(); return; }
+
+    if (closestEl(e.target, '[data-export-copy]')) { copyExport(); return; }
+    if (closestEl(e.target, '[data-export-download]')) { downloadExport(); return; }
+    if (closestEl(e.target, '[data-import-do]')) { doImport(); return; }
   });
 
   renderAll();

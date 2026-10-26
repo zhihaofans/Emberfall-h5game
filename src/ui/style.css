@@ -209,7 +209,7 @@ html, body { touch-action: manipulation; -ms-touch-action: manipulation; }
 .mbtn:active{background:#38302a}
 .mbtn.primary{background:var(--accent);border-color:var(--accent);color:#201207;font-weight:700}
 .mbtn.danger{background:#3a1d18;border-color:#5c2a20;color:#f0a08a}
-textarea#exportArea{
+textarea#exportArea,textarea#importArea{
   width:100%;min-height:70px;margin-top:9px;padding:9px;border-radius:9px;
   background:#0e0b08;border:1px solid var(--line);color:var(--txt);
   font-size:11px;word-break:break-all;font-family:monospace;

@@ -29,6 +29,12 @@ export function weaponAtk(state) {
 }
 
 /**
+ * 兽王击败后的固定掉落项（随机项另算）。
+ * 战斗结算与百科图鉴都读这一份，避免图鉴里再硬编码一遍。
+ */
+export const BOSS_EXTRA_DROPS = /** @type {Record<string, number>} */ ({ luck: 1, rune: 1 });
+
+/**
  * 废土兽王三阶段（按已击杀次数成长）。
  * @param {any} state
  * @returns {{name: string, hp: number, atk: number, food: number, leather: number, metal: number}}
@@ -273,13 +279,14 @@ export function fightBoss(state, opts, ctx = {}) {
       addRes(state, 'food', bs.food);
       addRes(state, 'leather', bs.leather);
       addRes(state, 'metal', bs.metal);
-      addRes(state, 'luck', 1);
-      addRes(state, 'rune', 1);
+      for (const k in BOSS_EXTRA_DROPS) addRes(state, k, BOSS_EXTRA_DROPS[k]);
       let totemTxt = '';
       if (random() < 0.4) { addRes(state, 'totem', 1); totemTxt = '、🪬不死图腾 ×1'; }
       if (random() < 0.3) { addRes(state, 'adrenaline', 1); totemTxt += '、💉肾上腺素 ×1'; }
       logs.push({
-        text: `🏆 ${bs.name}轰然倒地！你获得了${names.food} ×${bs.food}、${names.leather} ×${bs.leather}、${names.metal} ×${bs.metal}、${names.luck} ×1、${names.rune} ×1${totemTxt}！`,
+        text: `🏆 ${bs.name}轰然倒地！你获得了${names.food} ×${bs.food}、${names.leather} ×${bs.leather}、${names.metal} ×${bs.metal}`
+          + Object.keys(BOSS_EXTRA_DROPS).map((k) => `、${names[k]} ×${BOSS_EXTRA_DROPS[k]}`).join('')
+          + `${totemTxt}！`,
         cls: 'good',
       });
       state.stats.bossKills = (state.stats.bossKills || 0) + 1;

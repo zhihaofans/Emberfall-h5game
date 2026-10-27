@@ -69,6 +69,8 @@ const logBuffer = [];
 let autoTimer = null;
 let curZone = 'forest';
 let curTab = 'act';
+/** 底部操作区是否收起 */
+let folded = false;
 /** @type {any} */
 let pendingEvent = null;
 /** @type {any[]} */
@@ -201,6 +203,24 @@ export function renderAll() {
   renderZone();
   renderMain();
   renderActive();
+  updateBottomVisibility();
+}
+
+/** 底部显隐：区域栏只在「行动」页显示；收起时隐藏操作区（旧版行为） */
+function updateBottomVisibility() {
+  const zone = el('zonebar');
+  const actions = el('actions');
+  const fold = el('btnFold');
+  if (zone) zone.style.display = curTab === 'act' && !folded ? 'flex' : 'none';
+  if (actions) actions.style.display = folded ? 'none' : '';
+  if (fold) fold.textContent = folded ? '▴' : '▾';
+}
+
+function toggleFold() {
+  folded = !folded;
+  updateBottomVisibility();
+  const log = el('logwrap');
+  if (log) log.scrollTop = log.scrollHeight;
 }
 
 /** 按当前页签渲染主区域 */
@@ -454,8 +474,12 @@ function renderBag() {
   const price = resPrices();
   const parts = [];
 
-  parts.push('<button class="actbtn" data-bag-act="eat"><span>🍽 进食</span><span class="sub">饱食 ' + G.food + '/100</span></button>');
-  parts.push('<button class="actbtn" data-bag-act="drink"><span>💧 饮水</span><span class="sub">水分 ' + G.water + '/100</span></button>');
+  parts.push(
+    '<div class="bag-eatdrink">'
+    + `<button class="actbtn" data-bag-act="eat"><span>🍽 进食</span><span class="sub">饱食 ${G.food}/100</span></button>`
+    + `<button class="actbtn" data-bag-act="drink"><span>💧 饮水</span><span class="sub">水分 ${G.water}/100</span></button>`
+    + '</div>',
+  );
 
   for (const r of RESOURCES) {
     const n = G.res[r.id] || 0;
@@ -1462,6 +1486,7 @@ export function boot() {
   });
 
   el('activeStop')?.addEventListener('click', stopAutoLoop);
+  el('btnFold')?.addEventListener('click', toggleFold);
   el('btnMenu')?.addEventListener('click', openMenu);
   el('scanStop')?.addEventListener('click', async () => {
     try {

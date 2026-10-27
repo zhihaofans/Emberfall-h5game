@@ -295,6 +295,12 @@ textarea#exportArea,textarea#importArea{
 #actions.bag-mode{display:block;max-height:60vh}
 #actions.bag-mode .actbtn{width:100%;flex-direction:row;justify-content:space-between;padding:10px 12px;margin-bottom:6px}
 #actions.bag-mode .actbtn .sub{margin-left:auto}
+/* 背包页：进食/饮水合并成一行两列 */
+.bag-eatdrink{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+#actions.bag-mode .bag-eatdrink .actbtn{
+  width:auto;margin:0;padding:9px 10px;flex-direction:column;align-items:flex-start;gap:2px;
+}
+#actions.bag-mode .bag-eatdrink .actbtn .sub{margin-left:0;font-size:10.5px}
 
 /* —— P2 新增：制作面板 —— */
 #actions.craft-mode{display:block;max-height:62vh}

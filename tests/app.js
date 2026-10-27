@@ -98,6 +98,26 @@ async function clickMenu(page, label) {
     const acts = await page.$$eval('#actions .actbtn', (els) => els.length);
     ok(acts === 12, `行动面板 12 个按钮（实际 ${acts}）`);
 
+    // 区域栏只在「行动」页；背包页进食/饮水合并成一行
+    await page.evaluate(() => [...document.querySelectorAll('#tabs .tab')].find((t) => t.textContent.includes('背包')).click());
+    await page.waitForSelector('.bag-eatdrink');
+    const zoneHidden = await page.evaluate(() => getComputedStyle(document.getElementById('zonebar')).display === 'none');
+    ok(zoneHidden, '背包页隐藏区域栏');
+    const eatButtons = await page.$$eval('.bag-eatdrink .actbtn', (els) => els.length);
+    ok(eatButtons === 2, `进食/饮水合并成一行（${eatButtons} 个按钮）`);
+
+    // 收起 / 展开操作区
+    await page.evaluate(() => document.getElementById('btnFold').click());
+    const foldedHidden = await page.evaluate(() => getComputedStyle(document.getElementById('actions')).display === 'none');
+    ok(foldedHidden, '点收起后隐藏操作区');
+    await page.evaluate(() => document.getElementById('btnFold').click());
+    const unfoldedShown = await page.evaluate(() => getComputedStyle(document.getElementById('actions')).display !== 'none');
+    ok(unfoldedShown, '再点一次恢复操作区');
+
+    // 回到「行动」页
+    await page.evaluate(() => [...document.querySelectorAll('#tabs .tab')].find((t) => t.textContent.includes('行动')).click());
+    await page.waitForFunction(() => getComputedStyle(document.getElementById('zonebar')).display !== 'none');
+
     // 菜单 11 项
     await openMenu(page);
     const menu = await page.$$eval('#modalcard .mbtn', (els) => els.map((e) => e.textContent.trim()));

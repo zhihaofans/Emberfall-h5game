@@ -378,10 +378,19 @@ import { checkArmorSet } from './core/achievements.mjs';
 | 5.2 | `tools/stamp.mjs`：`--bump/--set/--build`，写版本唯一源并回读校验；同时从 `CHANGELOG.md` 生成游戏内 `CHANGELOG` 数组 | 三处（html / sw / version.json）不一致时直接失败；`CHANGELOG.md` 与内联数组逐条一致 |
 | 5.3 | `tools/package.mjs`：只打运行时文件 zip | 包内版本一致性核对 + `find -newer` 防过期 |
 | 5.4 | 替换 `release.sh` | 发布不再由 bash 里 `git add -A` 完成；commit/tag 仍由你执行 |
-| 5.5 | CI（GitHub Actions） | typecheck → 单测 → build → e2e → deploy，全绿才发。**2026-10-25 部分完成**：`npm run typecheck` 已并入 `verify`、CI verify job、`release.sh` 第 0 步（此时 tsc 错误 = 0） |
+| 5.5 | CI（GitHub Actions） | typecheck → 单测 → build → e2e → deploy，全绿才发。**2026-10-25**：`npm run typecheck` 并入 `verify` / CI verify job / `release.sh`。**2026-10-27**：新增 `.github/workflows/deploy.yml`（CI 成功 → 构建 dist → 发 Pages），并补 `README` 的开发/部署说明；**仍需你在仓库 Settings → Pages 把 Source 改成 GitHub Actions** |
 | 5.6 | e2e 只留关键路径 | 启动、存档往返、离线重载、安装提示、战斗一场、Boss 一场 |
 | 5.7 | 文档同步 | `AGENT.md` 代码地图按新目录重写；`CHANGELOG` 补 3.0.0；`README` 加开发命令 |
 | 5.8 | **版本号旁显示 git hash**：`tools/build.mjs` 读 `git rev-parse --short=7 HEAD`（工作区脏则加 `-dirty`，取不到写 `unknown`），注入 `version.json` 与构建产物；游戏内 4 处版本号文案（启动日志 / 主菜单 / 死亡页 / 版本规则面板）统一从 `core/version` 读取，**不允许各处手拼** | 显示值与 `git rev-parse --short HEAD` 一致；有未提交改动显示 `-dirty`；无 git 环境（解压的 zip）显示 `unknown` 且不报错；`check-ssot` 增加「产物 sha ↔ 当前 HEAD」校验 |
+
+### 5.5.1 Pages 部署记录（2026-10-27）
+
+- 新增 `.github/workflows/deploy.yml`：`workflow_run` 监听 CI 完成 → **只有 CI 成功才部署** → checkout `head_sha` → `npm ci` → `npm run build` → `upload-pages-artifact(dist)` → `deploy-pages`
+- 权限：`contents: read` / `pages: write` / `id-token: write`；`concurrency.group: pages`，不取消进行中的部署
+- **一次性设置**：仓库 Settings → Pages → Source 选 **GitHub Actions**。之前是「分支部署（根目录）」，所以线上一直是旧版 `index.html → survival.html`；切换后才是 `dist/` 新版
+- 为什么不在 push 里直接 build+deploy：避免 CI 红了站点却已更新；`workflow_dispatch` 留给补发与链路验证
+- 子路径部署没问题：`base: './'`，`manifest` / `sw.js` / 图标全是相对路径，Pages 的 `/Emberfall-h5game/` 下可用；SW 作用域自然限定在该子路径
+- **验证**：YAML 语法已用 `js-yaml` 解析通过；真实部署要等服务端（push + 改 Pages 设置）——本地无法验证
 
 ---
 

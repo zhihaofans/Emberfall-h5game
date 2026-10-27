@@ -1,0 +1,63 @@
+name: Deploy
+
+# 发布链路：CI（SSOT / 类型 / 单测 / e2e）全绿之后，把 dist/ 发到 GitHub Pages。
+#
+# 一次性设置（仓库管理员）：
+#   Settings → Pages → Build and deployment → Source = **GitHub Actions**
+# 之前 Pages 用的是「分支部署（根目录）」，所以线上一直是旧版 index.html → survival.html；
+# 切到 Actions 之后，这个 workflow 部署的 dist/ 才会真正上线。
+#
+# 为什么挂在 workflow_run 而不是直接 push：
+#   避免「CI 红了但站点已经更新」——只有 CI 成功才部署。
+#   手动触发（workflow_dispatch）用于补发或验证部署链路。
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同一时间只跑一个部署；新的推送顶掉排队中的旧部署（不要取消正在进行的，避免半成品）
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: 构建 dist/
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # workflow_run 事件的默认 SHA 是「CI 那次运行」的提交，显式取它更稳
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: 安装依赖
+        run: npm ci
+      - name: 构建（Vite 多文件产物 + 注入 SW 预缓存清单）
+        run: npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: 发布到 Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

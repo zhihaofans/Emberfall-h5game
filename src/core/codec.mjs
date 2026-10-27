@@ -74,16 +74,18 @@ export function parseSaveCode(text, now = Date.now()) {
     return { state, isOld: legacy || fmt < SAVE_FMT };
   };
 
-  // 允许前缀前面带说明文字（「我的存档：EMBER:xxx」），取最先出现的已知前缀
+  // 允许前缀前面带说明文字（「我的存档：EMBER:xxx」），取最先出现的已知前缀；
+  // 前缀大小写不敏感（部分输入法/聊天工具会把开头字母转成小写）
   const tags = [
     { tag: QR_TAG, kind: 'qr' },
     { tag: LEGACY_TAG, kind: 'legacy' },
     { tag: CODE_TAG, kind: 'code' },
   ];
+  const lower = code.toLowerCase();
   /** @type {{tag: string, kind: string, at: number}|null} */
   let hit = null;
   for (const t of tags) {
-    const at = code.indexOf(t.tag + ':');
+    const at = lower.indexOf(t.tag.toLowerCase() + ':');
     if (at >= 0 && (!hit || at < hit.at)) hit = { ...t, at };
   }
 

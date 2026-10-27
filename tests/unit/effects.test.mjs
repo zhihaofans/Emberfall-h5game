@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createNewState } from '../../src/core/save.mjs';
-import { applyEffects } from '../../src/core/effects.mjs';
+import { applyEffects, fillResText } from '../../src/core/effects.mjs';
 
 const NOW = 1_700_000_000_000;
 const fresh = () => createNewState(NOW);
@@ -105,4 +105,11 @@ test('组合效果：隐藏宝箱（多资源 + 金币 + 日志）', () => {
 test('未知指令直接抛错（避免静默失效）', () => {
   const s = fresh();
   assert.throws(() => applyEffects(s, [{ op: 'nope' }]), /未知的效果指令/);
+});
+
+test('fillResText：把 {res:key} 换成中文名，未知键原样保留', () => {
+  assert.equal(fillResText('获得{res:metal} ×3~5'), '获得🔩金属 ×3~5');
+  assert.equal(fillResText('{res:wood}与{res:stone}'), '🪵木材与🪨石头');
+  assert.equal(fillResText('{res:nope}'), '{res:nope}');
+  assert.equal(fillResText('没有占位'), '没有占位');
 });

@@ -48,6 +48,17 @@ import { RECIPES } from './data/recipes.mjs';
 /** @typedef {import('./types.mjs').LogEntry} LogEntry */
 
 /**
+ * 把文案里的 `{res:key}` 换成资源中文名（事件选项描述、日志共用一套命名）。
+ * @param {string} text
+ * @returns {string}
+ */
+export function fillResText(text) {
+  const names = resNames();
+  // 未知键保留占位符，暴露数据错误而不是显示一个裸 key
+  return String(text).replace(/\{res:([A-Za-z_][A-Za-z0-9_]*)\}/g, (m, k) => names[k] ?? m);
+}
+
+/**
  * 执行一组效果指令。
  * @param {any} state 游戏状态（原地修改）
  * @param {Effect[]} effects

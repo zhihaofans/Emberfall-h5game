@@ -119,6 +119,15 @@ test('容错：BOM / 前缀前带说明 / base64 折行 / URL-safe 变体', () =
   assert.equal(parseSaveCode(urlSafe).state.gold, 777);
 });
 
+test('前缀大小写不敏感（输入法/聊天工具会把开头字母转小写）', () => {
+  const code = exportCode(sampleState(), VER);
+  for (const pre of ['ember:', 'Ember:', 'eMbEr:']) {
+    const r = parseSaveCode(pre + code.slice(CODE_TAG.length + 1));
+    assert.ok(r, `${pre} 应能识别`);
+    assert.equal(r.state.gold, 777);
+  }
+});
+
 test('坏数据一律返回 null，不抛错', () => {
   for (const bad of ['', '   ', 'hello', 'EMBER:', 'EMBER:!!!', 'EMQR1:!!!', '{"a":1}', '{}', null, undefined]) {
     assert.equal(parseSaveCode(bad), null, `应拒绝：${String(bad)}`);

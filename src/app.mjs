@@ -34,6 +34,7 @@ import { exploreZone, rollExploreEvent } from './core/explore.mjs';
 import { resolveOption, lostOpts } from './core/explore-events.mjs';
 import { pickMonster, fightRound, fightBoss, flee, bossFlee, bait, bossStats, pharaohStats } from './core/combat.mjs';
 import { checkMilestone, checkStageAchieve, checkArmorSet } from './core/achievements.mjs';
+import { fillResText } from './core/effects.mjs';
 import { pickMerchantGoods, canTrade, buyMerchant, doraInfo, doraGoods, DORA_GIFTS, canGift, giftDora, canBuyDoraGood, buyDoraGood, addDoraFav } from './core/npc.mjs';
 import { markEncounter, wikiProgress } from './core/wiki.mjs';
 import { monsterEntries, materialEntries } from './core/bestiary.mjs';
@@ -690,9 +691,9 @@ function renderEvent(title, text, opts) {
   eventOpts = opts;
   const items = opts.map((o, i) => {
     const dis = o.disabled ? 'disabled style="opacity:.45;cursor:not-allowed"' : '';
-    return `<button class="evbtn" data-idx="${i}" ${dis}>${o.label}<span class="d">${o.d || ''}</span></button>`;
+    return `<button class="evbtn" data-idx="${i}" ${dis}>${fillResText(o.label)}<span class="d">${fillResText(o.d || '')}</span></button>`;
   }).join('');
-  el('evwrap').innerHTML = `<h4>⚡ ${title}</h4><div class="evbox"><div class="evt">${text}</div>${items}</div>`;
+  el('evwrap').innerHTML = `<h4>⚡ ${fillResText(title)}</h4><div class="evbox"><div class="evt">${fillResText(text)}</div>${items}</div>`;
   el('evmask').classList.add('show');
 }
 

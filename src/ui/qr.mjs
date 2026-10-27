@@ -1,17 +1,21 @@
 // 二维码：生成（导出用）与摄像头扫描（导入用）。
 //
 // 生成用 qrcode-generator（与旧内联库同一个库，编码结果稳定）；扫描用 jsQR，
-// 每 400ms 从摄像头画面抽 1/2 分辨率的一帧解码 —— 与旧版 pwaBoot 之后的扫码实现一致。
+// 每 300ms 抽一帧解码，长边最多 1280px（半分辨率会把密集二维码压成 1px/模块，解不出）。
 //
 // 只碰 DOM 与 MediaStream，不读写存档；解码成功把文本交给调用方，由 codec 负责解析。
 
 import qrcode from 'qrcode-generator';
 import jsQR from 'jsqr';
 
+const TIP_DEFAULT = '正在识别…<br><span style="font-size:11px;opacity:.7">把二维码放进取景框，靠近一点、调亮屏幕</span>';
+
 /** @type {MediaStream | null} */
 let stream = null;
 /** @type {ReturnType<typeof setInterval> | null} */
 let timer = null;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let tipTimer = null;
 
 /**
  * 生成二维码 canvas（白底黑码，四周留 4 模块静默区）。
@@ -19,14 +23,16 @@ let timer = null;
  * @param {number} [size] 期望边长（实际会取整到模块整数倍）
  * @returns {HTMLCanvasElement}
  */
-export function makeQrCanvas(text, size = 260) {
+export function makeQrCanvas(text, size = 300) {
   const qr = qrcode(0, 'M');
   qr.addData(text, 'Byte');
   qr.make();
 
   const n = qr.getModuleCount();
-  const pad = 4;
-  const cell = Math.max(1, Math.floor((size - pad * 2) / n));
+  // 关键：每模块至少 3 像素。存档较大时模块数可达 165+，按 260px 算只有 1px/模块，
+  // 手机摄像头几乎不可能解出来（实测：1px/模块在理想图下能解，真实拍摄基本失败）。
+  const cell = Math.max(3, Math.floor((size - 16) / n));
+  const pad = 4 * cell;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = n * cell + pad * 2;
 
@@ -43,6 +49,9 @@ export function makeQrCanvas(text, size = 260) {
 /** 停止扫码：清定时器、关摄像头、收起全屏层。重复调用安全。 */
 export function stopScanner() {
   if (timer) { clearInterval(timer); timer = null; }
+  if (tipTimer) { clearTimeout(tipTimer); tipTimer = null; }
+  const tip = document.querySelector('#scanner .tip');
+  if (tip) tip.innerHTML = TIP_DEFAULT;
   if (stream) {
     for (const t of stream.getTracks()) t.stop();
     stream = null;
@@ -84,7 +93,16 @@ export async function startScanner(opts) {
   video.srcObject = stream;
   video.play().catch(() => { /* 自动播放被拦时由用户点一下即可 */ });
   sc.classList.add('show');
-  timer = setInterval(() => tick(video, onText), 400);
+
+  // 8 秒还没解出来就换提示：让玩家知道是「没扫到」，不是点了没反应
+  const tip = sc.querySelector('.tip');
+  if (tip) tip.innerHTML = TIP_DEFAULT;
+  if (tipTimer) clearTimeout(tipTimer);
+  tipTimer = setTimeout(() => {
+    if (tip) tip.innerHTML = '还没识别到…<br><span style="font-size:11px;opacity:.7">靠近一点 / 调亮屏幕 / 换角度，或改用「粘贴导入」</span>';
+  }, 8000);
+
+  timer = setInterval(() => tick(video, onText), 300);
 }
 
 /**
@@ -95,7 +113,9 @@ export async function startScanner(opts) {
 function tick(video, onText) {
   if (!video || video.readyState < 2 || !video.videoWidth) return;
 
-  const scale = 0.5;
+  // 全分辨率解码（长边最多 1280，兼顾性能）：半分辨率会把 2px/模块压成 1px，直接解不出
+  const longest = Math.max(video.videoWidth, video.videoHeight);
+  const scale = Math.min(1, 1280 / longest);
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(video.videoWidth * scale);
   canvas.height = Math.round(video.videoHeight * scale);

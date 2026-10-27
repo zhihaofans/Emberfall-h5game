@@ -247,7 +247,7 @@ textarea#exportArea,textarea#importArea{
   background:#fff;border-radius:12px;padding:12px;margin:10px 0;
   display:flex;flex-direction:column;align-items:center;
 }
-#qrbox canvas{width:100%;max-width:250px;height:auto;image-rendering:pixelated}
+#qrbox canvas{width:100%;max-width:320px;height:auto;image-rendering:pixelated}
 #qrbox .qhint{font-size:11px;color:#555;margin-top:6px;text-align:center;line-height:1.5}
 /* 扫码全屏层 */
 #scanner{

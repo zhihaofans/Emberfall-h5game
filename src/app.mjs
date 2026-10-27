@@ -39,6 +39,7 @@ import { markEncounter, wikiProgress } from './core/wiki.mjs';
 import { monsterEntries, materialEntries } from './core/bestiary.mjs';
 import { SHOP, SHOP_GROUPS } from './core/data/shop.mjs';
 import { shopItem, buyShopItem, canBuyShop, canBuyAnyShop } from './core/shop.mjs';
+import { skillRows } from './core/skills.mjs';
 
 // 版本号由构建注入（唯一源：仓库根 version.json）
 const APP_VERSION = __APP_VERSION__;
@@ -912,6 +913,7 @@ function openMenu() {
     <h3>☰ 菜单</h3>
     <div class="msub">末日余烬 v${APP_VERSION} · 第 ${G.day} 天 · ${state}</div>
     <button class="mbtn" data-menu="shop">🏪 黑市商店（💰${G.gold}）</button>
+    <button class="mbtn" data-menu="skills">🏅 技能一览</button>
     <button class="mbtn" data-menu="wiki">📖 百科图鉴</button>
     <button class="mbtn" data-menu="export">📤 导出存档</button>
     <button class="mbtn" data-menu="import">📥 导入存档</button>
@@ -924,6 +926,7 @@ function openMenu() {
 /** @param {string} act */
 function handleMenu(act) {
   if (act === 'shop') return renderShop();
+  if (act === 'skills') return renderSkills();
   if (act === 'wiki') return openWiki();
   if (act === 'export') return openExport();
   if (act === 'import') return openImport();
@@ -992,6 +995,24 @@ function buyShop(id) {
   save();
   refreshShop();
   if (!canBuyAnyShop(G)) toast('金币已不足以再购买');
+}
+
+/* ---------------- 技能一览 ---------------- */
+
+/** 7 种技能的等级、经验进度与加成说明（数值与公式全部来自 core/skills.mjs） */
+function renderSkills() {
+  const rows = skillRows(G).map((r) => `
+    <div class="skillrow">
+      <div style="display:flex;justify-content:space-between"><b>${r.name} Lv.${r.lvl}</b><span style="color:var(--txt-faint)">${r.xp}/${r.need} XP</span></div>
+      <div style="height:6px;margin-top:4px;background:#0e0b08;border:1px solid #2a231b;border-radius:4px"><div style="width:${r.pct}%;height:100%;background:var(--accent);border-radius:4px;transition:width .3s"></div></div>
+      <div style="font-size:11px;color:var(--txt-faint);margin-top:3px">${r.desc}</div>
+    </div>`).join('');
+
+  setModal(`
+    <h3>🏅 技能</h3>
+    <div class="msub">等级越高效率越高 · 行动会自动获得经验</div>
+    ${rows}
+    <button class="mbtn" data-close="1">关闭</button>`);
 }
 
 /* ---------------- 百科图鉴 ---------------- */

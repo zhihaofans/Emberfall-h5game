@@ -15,6 +15,7 @@ export const SKILL_NAMES = {
   "combat": "战斗",
 };
 
+/** @type {Record<string, string>} */
 export const SKILL_DESC = {
   "chop": "每级 砍柴产量 +8%",
   "mine": "每级 采石产量 +5%",

@@ -47,6 +47,7 @@ import {
 import { CHANGELOG } from './core/data/changelog.mjs';
 import { VERSION_RULES, changelogStats } from './core/changelog.mjs';
 import { canInstallNow, install as pwaInstall } from './pwa.mjs';
+import { exportCode, exportQrCode, parseSaveCode } from './core/codec.mjs';
 
 // 版本号由构建注入（唯一源：仓库根 version.json）
 const APP_VERSION = __APP_VERSION__;
@@ -1219,15 +1220,31 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => map[c] || c);
 }
 
-function openExport() {
-  const code = serialize(G, APP_VERSION);
+async function openExport() {
+  const code = exportCode(G, APP_VERSION);
   setModal(`
     <h3>📤 导出存档</h3>
-    <div class="msub">下面整段文本就是存档：复制保存，换设备时粘进「导入存档」即可</div>
+    <div class="msub">方式一 · 扫码（跨设备推荐）</div>
+    <div id="qrbox"><div id="qrCanvasBox"><div class="qhint">正在生成二维码…</div></div>
+      <div class="qhint">用另一台手机的相机 / 微信 / 扫码 App 扫一扫<br>扫出的文本就是存档，粘贴到新设备的导入框即可</div>
+    </div>
+    <div class="msub">方式二 · 复制 / 下载代码</div>
     <textarea id="exportArea" readonly>${escapeHtml(code)}</textarea>
     <button class="mbtn primary" data-export-copy="1">📋 复制到剪贴板</button>
     <button class="mbtn" data-export-download="1">⬇️ 下载为 .txt 文件</button>
     <button class="mbtn" data-close="1">关闭</button>`);
+
+  // 二维码组件（qrcode-generator）按需加载：不打开导出面板就不为它付首屏体积
+  const box = document.getElementById('qrCanvasBox');
+  try {
+    const { makeQrCanvas } = await import('./ui/qr.mjs');
+    if (!box) return;
+    box.innerHTML = '';
+    // 二维码用压缩格式（EMQR1），否则大存档塞不进码里
+    box.appendChild(makeQrCanvas(exportQrCode(G, APP_VERSION), 260));
+  } catch {
+    if (box) box.innerHTML = '<div class="qhint">二维码加载失败，请改用复制 / 下载</div>';
+  }
 }
 
 function copyExport() {
@@ -1246,7 +1263,7 @@ function fallbackCopy(done) {
 }
 
 function downloadExport() {
-  const code = serialize(G, APP_VERSION);
+  const code = exportCode(G, APP_VERSION);
   const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1259,43 +1276,51 @@ function downloadExport() {
 function openImport() {
   setModal(`
     <h3>📥 导入存档</h3>
-    <div class="msub">粘贴存档文本（兼容 EMBER / EMBER1 标识）· 会覆盖当前进度</div>
+    <div class="msub">方式一 · 扫码（跨设备）</div>
+    <button class="mbtn primary" data-import-scan="1">📷 扫码导入</button>
+    <div class="msub">方式二 · 粘贴存档代码（兼容 EMBER / EMBER1 / EMQR1 / 扫码文本）</div>
     <textarea id="importArea" placeholder="粘贴存档代码…"></textarea>
     <button class="mbtn primary" data-import-do="1">导入并覆盖当前进度</button>
     <button class="mbtn" data-close="1">取消</button>`);
 }
 
 /**
- * 从任意文本里抠出存档 JSON（容忍前后夹带说明文字）。
- * @param {string} text
- * @returns {any|null} 规范化后的状态，失败返回 null
+ * 载入一份解析好的存档并落盘。
+ * @param {any} state @param {boolean} isOld @param {string} how 动名词（如「扫码导入」），用于日志与提示
  */
-function parseImportText(text) {
-  const t = String(text || '').trim();
-  if (!t) return null;
-  const start = t.indexOf('{');
-  const end = t.lastIndexOf('}');
-  if (start < 0 || end <= start) return null;
-  try {
-    return parseSavePayload(JSON.parse(t.slice(start, end + 1)));
-  } catch {
-    return null;
-  }
+function adoptSave(state, isOld, how) {
+  G = state;
+  logBuffer.length = 0;
+  closeModal();
+  log(`📥 ${how}成功${isOld ? '（旧版存档已自动升级）' : ''}！`, 'good');
+  renderAll();
+  save();
+  toast(`${how}成功`);
 }
 
 function doImport() {
   const ta = /** @type {HTMLTextAreaElement|null} */ (el('importArea'));
-  const parsed = parseImportText(ta ? ta.value : '');
+  const parsed = parseSaveCode(ta ? ta.value : '');
   if (!parsed) { toast('导入失败：存档代码无效'); return; }
+  adoptSave(parsed.state, parsed.isOld, '存档导入');
+}
 
-  G = parsed;
-  logBuffer.length = 0;
-  try { localStorage.setItem(SAVE_KEY, serialize(G, APP_VERSION)); } catch { /* 配额满则忽略 */ }
+/** 扫码导入：关掉弹窗 → 起摄像头 → 解码成功即导入（扫码组件按需加载） */
+async function scanImport() {
   closeModal();
-  log('📥 存档导入成功！', 'good');
-  renderAll();
-  save();
-  toast('导入成功');
+  try {
+    const { startScanner } = await import('./ui/qr.mjs');
+    startScanner({
+      onText: (text) => {
+        const parsed = parseSaveCode(text);
+        if (!parsed) { toast('扫到的内容不是有效存档'); return; }
+        adoptSave(parsed.state, parsed.isOld, '扫码导入');
+      },
+      onError: (msg) => toast(msg),
+    });
+  } catch {
+    toast('扫码组件加载失败，请改用粘贴导入');
+  }
 }
 
 /* ---------------- 存档操作 ---------------- */
@@ -1427,6 +1452,13 @@ export function boot() {
 
   el('activeStop')?.addEventListener('click', stopAutoLoop);
   el('btnMenu')?.addEventListener('click', openMenu);
+  el('scanStop')?.addEventListener('click', async () => {
+    try {
+      const { stopScanner } = await import('./ui/qr.mjs');
+      stopScanner();
+    } catch { /* 组件没加载过，说明扫描根本没起来 */ }
+    toast('已取消扫码');
+  });
 
   el('modal')?.addEventListener('click', (e) => {
     const closeBtn = closestEl(e.target, '[data-close]');
@@ -1461,6 +1493,7 @@ export function boot() {
 
     if (closestEl(e.target, '[data-export-copy]')) { copyExport(); return; }
     if (closestEl(e.target, '[data-export-download]')) { downloadExport(); return; }
+    if (closestEl(e.target, '[data-import-scan]')) { scanImport(); return; }
     if (closestEl(e.target, '[data-import-do]')) { doImport(); return; }
   });
 

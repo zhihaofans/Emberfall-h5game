@@ -62,6 +62,14 @@
   <div id="evmask"><div class="wrap" id="evwrap"></div></div>
   <!-- 轻提示 -->
   <div id="toast" class="toast"></div>
+  <!-- 扫码导入全屏层 -->
+  <div id="scanner">
+    <video id="scanVideo" playsinline muted></video>
+    <div class="sframe"></div>
+    <div class="sbar"></div>
+    <div class="tip">将二维码对准扫描框</div>
+    <button class="stop" id="scanStop">取 消</button>
+  </div>
 
   <script type="module" src="./main.ts"></script>
 </body>

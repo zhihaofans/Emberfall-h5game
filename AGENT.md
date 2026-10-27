@@ -1,8 +1,8 @@
 # AGENT.md · 末日余烬 / Emberfall
 
 > 给 AI 编程助手与未来的维护者的项目说明书：**游戏设定逻辑 + 代码地图 + 协作铁律 + 历史坑**。
-> 版本 **2.0.0 (build 102)** · 存档格式 **SAVE_FMT 11** · 代码规模 **6436 行 / 147 函数 / 40 张数据表**
-> 最后更新：2026-10-24
+> 版本 **3.0.0 (build 103)** · 存档格式 **SAVE_FMT 11** · 源码 **6962 行（src/）/ 20 个 core 模块 / 18 个数据文件**
+> 最后更新：2026-10-27（M4：旧单文件冻结到 legacy/，新架构 3.0.0 发布）
 
 ---
 
@@ -51,8 +51,8 @@
 2. **必须能构建出可离线部署的 PWA 产物**（`npm run build` → `dist/`；装到桌面/主屏幕后断网可玩）
 
 > 2026-10-25 起**不再要求「单个 HTML 双击即玩」**（D2 改为多文件产物 + PWA 部署）。
-> 迁移期间旧的 `survival.html` 仍可单独打开，但它不再是验收对象，M4 之后移除；
-> 代码里「`file://` 下不注册 SW」的防御保留，仅为避免意外打开时抛错。
+> **2026-10-27 M4 已切换**：旧 `survival.html` 冻结到 `legacy/`（只作单测对拍基准，不发布、不修改），
+> 验收对象是新架构的 `dist/`；代码里「`file://` 下不注册 SW」的防御保留，仅为避免意外打开时抛错。
 
 ### 0.5 单一数据源（SSOT）：同一事实只改一处
 
@@ -86,102 +86,90 @@
 | 定位 | 末日废土文字生存点击游戏（挂机 + 探索 + 制作 + 战斗） |
 | 目标平台 | 手机浏览器优先（基准视口 390×844），同时适配桌面 |
 | 玩法参考 | Melvor Idle（技能/挂机节奏）、Minecraft（合成/装备/附魔/钓鱼） |
-| 技术栈 | 原生 JS（无框架无构建）、内联 CSS、localStorage、Service Worker |
-| 形态 | 单文件 `survival.html`（435KB，含内联 QR 码库与存档压缩） + PWA 外壳 |
+| 技术栈 | TypeScript `strict`（allowJs + checkJs）+ Vite 多文件产物 + 原生 DOM（无框架） + localStorage + Service Worker |
+| 形态 | `src/` 分模块 → `npm run build` → `dist/`（部署在 `gh-pages` 分支） |
 | 核心循环 | 采集 → 制作 → 探索/战斗 → 装备强化 → 解锁新区域 → 打 Boss |
 
 ### 1.1 文件清单
 
-```
-survival.html      游戏本体（HTML+CSS+JS 全内联，6436 行）
-index.html         入口，redirect 到 survival.html
-manifest.json      PWA 清单（start_url ./index.html, scope ./, standalone）
-sw.js              Service Worker（cacheFirst + 版本化缓存 + 清旧）
-version.json       版本信息（页面切前台比对，SW 字节不变时的兜底更新路径）
-icons/             7 张图标（192/512/maskable-512/apple-180/128/favicon/1024 母版）
-splash/            6 张 iOS 启动图（深色主题）
-screenshots/       1 张安装卡片截图
-release.sh         一键发布（测试 → 注入版本 → commit/tag → 打包 → 一致性核对）
-tests/             回归测试（puppeteer，入库但不进发布包）
-tools/             SSOT 校验 / 元数据同步 / 构建脚本
-src/               新架构源码（迁移中：core 纯逻辑 + 后续 ui）
-CHANGELOG.md       完整更新历史（75 版 / 216 条，与游戏内 CHANGELOG 同源）
-dev-docs/          开发文档：TODO.md（重构计划）/ SUSPECTED.md（疑似离谱设定）
+```text
+src/                 新架构源码（唯一开发对象）
+  index.html         入口骨架（PWA meta / manifest / iOS 启动图）
+  main.ts            boot() + bootPWA()
+  app.mjs            UI 层：状态容器、渲染、事件委托（无内联 onclick）
+  pwa.mjs            SW 注册 / 安装引导 / 更新提示 / 离线标识
+  ui/qr.mjs          二维码生成 + 摄像头扫码（动态 import，按需加载）
+  core/              纯逻辑：不碰 DOM、状态显式传入传出，可单测
+  core/data/         数据表（18 个文件，含 40+ 张表）
+legacy/survival.html 冻结的 2.0.0 旧实现（单测对拍基准；不发布、不修改，见 legacy/README.md）
+tools/               构建与发布：build / stamp / package / release / check-ssot / sync-meta
+tests/unit/          纯函数单测（211 条）
+tests/app.js         新架构 e2e（dist/ 冒烟）
+tests/*.js           旧 66 个 e2e（只有 `--legacy` 才跑）
+dist/                构建产物（不入库）
+version.json         版本号唯一源
+CHANGELOG.md         更新日志唯一源（页面运行时直读原文，不生成副本）
 ```
 
 ### 1.2 运行方式
 
 | 场景 | 命令 | SW |
 |---|---|---|
-| 本地单文件 | 双击 `survival.html`（**非验收项**，见 §0.4） | 不注册（`file://`） |
-| 本地服务器 | `python3 -m http.server 3000` | 注册（localhost 视为安全上下文） |
-| 线上 PWA | https 部署 | 注册 + 可安装 + 离线 |
+| 本地开发 | `npm run dev`（Vite，src/ 为根） | 注册（localhost 视为安全上下文） |
+| 构建 + 预览 | `npm run build && npm run preview` | 注册 |
+| 线上 | push → CI → Deploy → `gh-pages` | 注册 + 可安装 + 离线 |
 
 ---
 
-## 2. 代码地图（survival.html）
+## 2. 代码地图（src/）
 
-### 2.1 分区（按行号）
+### 2.1 分层
 
-| 行号段 | 内容 |
-|---|---|
-| 1–300 | `<head>`（PWA meta、iOS 启动图）+ 全部 CSS |
-| 300–2680 | 内联第三方库（LZString 压缩、QR 码生成/扫描） |
-| 2683–2702 | 版本常量（`GAME_VERSION` / `BUILD_CODE` / `VERSION_RULES`） |
-| 2703–3070 | **CHANGELOG**（发布历史，只增不改） |
-| 3071–3077 | 存档常量（`SAVE_KEY` / `SAVE_FMT`）+ 季节/天气 |
-| 3080–3243 | **主数据表**：技能、区域、行动、价格、商店、幸运方块、配方、强化、附魔 |
-| 3244–3470 | **资源/怪物/NPC 数据**：`RES_NAMES`、`GET_WHERE`、野兽、机器人、区域怪、月圆怪、机器猫、兽王、武器 |
-| 3471–3560 | 装备材质、槽位、商人商品池 |
-| 3615–3860 | **事件表**：探索事件 32 个、夜间事件 4 个 |
-| 3860–4900 | 核心逻辑：时间推进、行动、探索、战斗、制作、成就判定 |
-| 4834–4900 | `MS` 里程碑文案 + 天数奖励 |
-| 4900–5400 | 存档：`normalizeState` / `migrateFrom` / 序列化 / 离线结算 |
-| 5400–6100 | 渲染层：菜单、商店、技能、百科、进度、行动面板、背包 |
-| 6100–6300 | 防崩溃回退（EBH 哨兵 + HTML 备份到 localStorage） |
-| 6299–6436 | **PWA 能力层**（`pwaBoot`：SW 注册、安装引导、更新提示、离线标识） |
+```text
+core/data/*   数据表（唯一源；只在 core 内被引用）
+core/*        纯逻辑（不 import DOM、不 import app）
+app.mjs       UI：把 core 接到 DOM（状态容器 + 渲染 + 事件委托）
+main.ts       入口：boot() → bootPWA()
+```
 
-### 2.2 数据表清单（改数值先找这里）
+### 2.2 模块清单
 
-| 表 | 行号 | 管什么 |
+| 模块 | 职责 | 关键导出 |
 |---|---|---|
-| `SKILLS` / `SKILL_NAMES` / `SKILL_DESC` | 3080–3088 | 7 个技能键名与文案 |
-| `ZONES` | 3090 | 5 个探索区域（资源产出、危险度、解锁天数、成就组） |
-| `ACTIONS` | 3098 | 14 个行动（耗时、精力、自动解锁等级） |
-| `RES_PRICE` | 3116 | 卖出单价（黑市买价在 `SHOP`） |
-| `SHOP` | 3117 | 黑市商品（基础物资 + 高级道具） |
-| `LUCK_EVENTS` | 3136 | 🎲幸运方块 18 种随机效果 |
-| `RECIPES` | 3159 | 22 个配方（5 阶：9/5/1/5/2），含 `needLv` 等级门槛 |
-| `UPGRADES` | 3189 | 强化项（武器/斧/鱼竿/捕兽夹），上限 15 级 |
-| `ENCHANTS` / `ENCHANT_TBL_MAX` | 3204–3243 | 附魔（锋利/保护/效率），附魔台上限 5 级 |
-| `RES_NAMES` | 3244 | 23 种资源的中文名 + emoji（**渲染文案统一取这里**） |
-| `GET_WHERE` | 3247 | 材料获取途径（百科「材料百科」数据源） |
-| `BEASTS` / `ROBOTS` / `REGION_BEASTS` / `MOON_BEASTS` | 3272–3300 | 通用野兽 4 种 / 废墟机器人 3 种 / 区域特色怪 + 金字塔怪 / 月圆进化 2 种 |
-| `DORA_LEVELS` / `DORA_GOODS` | 3335–3430 | 机器猫 6 级好感门槛与按等级解锁的商品 |
-| `BOSS` / `bossStats()` / `pharaohStats()` | 3432–3465 | 兽王、法老的三阶段成长 |
-| `WEAPONS` | 3452 | 武器链（徒手→石刀→铁刀→钢刀→猎王→符刃） |
-| `ARMOR_MATS` / `ARMOR_MAT_INFO` / `ARMOR_SLOTS` | 3471–3485 | 6 材质 × 4 部位的减伤与成本 |
-| `MERCHANT_GOODS` | 3555 | 流浪商人商品池（`pickMerchantGoods` 抽 4 个） |
-| `EXPLORE_EVENTS` / `NIGHT_EVENTS` | 3615 / 3829 | 探索事件池（按 `w` 权重抽）、夜间事件 |
-| `MS` / `DAY_MILESTONES` / `DAY_REWARDS` | 4834 / 4880 | 里程碑文案、天数节点、天数奖励 |
+| `core/save.mjs` | 存档：默认值 / 迁移 / 规范化 / 序列化 | `createNewState` `normalizeState` `migrateFrom` `serialize` `parseSavePayload` `SAVE_FMT` |
+| `core/codec.mjs` | 导出码 / 二维码码 / 解析（EMBER / EMBER1 / EMQR1 / 裸 JSON） | `exportCode` `exportQrCode` `parseSaveCode` |
+| `core/time.mjs` | 时间推进、季节天气、被动生存 | `advanceHour` `seasonOf` `rollWeather` `dailyConsume` `applyPassive` |
+| `core/actions.mjs` | 13 个行动的产出与前置检查、自动循环 | `checkAction` `payActionCost` `doChop` … `nextAutoAction` |
+| `core/craft.mjs` | 制作 / 装备 / 强化 / 附魔 | `doCraft` `craftArmor` `upgradeItem` `enchantItem` `armorDmgMult` |
+| `core/combat.mjs` | 伤害公式、战斗、Boss 三阶段 | `weaponAtk` `fightRound` `fightBoss` `bossStats` `pharaohStats` |
+| `core/explore.mjs` · `core/explore-events.mjs` | 区域探索与事件结算 | `exploreZone` `pickExploreEvent` `resolveOption` `lostOpts` |
+| `core/npc.mjs` | 机器猫好感 / 流浪商人 | `doraInfo` `giftDora` `pickMerchantGoods` `buyMerchant` |
+| `core/achievements.mjs` | 里程碑、区域/阶段/钓鱼/套装成就 | `checkMilestone` `checkZoneAchieve` `checkArmorSet` |
+| `core/skills.mjs` | 技能进度派生 | `skillRows` |
+| `core/progress.mjs` | 进度总览派生 | `dayProgress` … `achievementProgress` |
+| `core/bestiary.mjs` · `core/wiki.mjs` | 图鉴条目与解锁 | `monsterEntries` `materialEntries` `markEncounter` |
+| `core/version.mjs` | 版本文案（ver + build + git hash） | `versionLabel` |
+| `core/effects.mjs` | 声明式效果指令执行器 | `applyEffects` |
+| `app.mjs` | 渲染与交互（菜单/商店/制作/背包/探索/战斗/图鉴/导出导入） | `boot` `renderAll` `toast` |
+| `pwa.mjs` | PWA 能力层 | `bootPWA` `install` `isIOS` `canInstall` |
 
-### 2.3 函数按域归类（147 个的主要部分）
+### 2.3 数据表索引
 
-| 域 | 关键函数 |
+| 数据 | 文件 |
 |---|---|
-| 存档 | `save` `hasSave` `loadSave` `serialize` `parseSavePayload` `normalizeState` `migrateFrom` `settleOffline` `clearSave` |
-| 时间 | `passTime` `nextDay` `tick` `applyPassive` `checkDeath` `showDeath` |
-| 行动 | `doAction` `startAuto` `stopAuto` `gameTick` `onActionBtn` |
-| 采集/制作 | `doCraft` `craftArmor` `upgradeItem` `upgradeCost` `recipeVisible` `hasRes` `spend` `addRes` |
-| 探索/战斗 | `doExplore` `rollExploreEvent` `startCombat` `fight` `startBossFight` `startPharaohFight` `bossStats` `pharaohStats` `weaponAtk` `armorDmgMult` |
-| 事件 | `showEvent` `resolveEvent` `lostOpts` `rollNightEvent` `showMoonNightEvent` `resolveMoonNight` `pickMerchantGoods` |
-| NPC | `doraInfo` `addDoraFav` `doraGoods` `doraMainOpts` `doraGiftOpts` `doraPocketOpts` |
-| 成长 | `skillLvl` `addXp` `xpNeed` `checkMilestone` `checkZoneAchieve` `checkStageAchieve` `checkFishAchieve` `checkArmorSet` |
-| 附魔 | `enchantItem` `enchantCost` `upgradeEnchantTbl` `enchantTblCost` |
-| 图鉴 | `wikiSeen` `wikiUnlocked` `legacyBestiary` `openWiki` `wikiTab` `monsterHTML` `matsHTML` |
-| 渲染 | `renderAll` `renderActions` `switchTab` `openMenu` `openShop` `openSkills` `openProgress` `openChangelog` `openExport` `openImport` `toast` `log` |
-| PWA | `pwaBoot` `pwaInstall` `pwaCanInstall` `pwaBanner` `pwaCheckVersion` `pwaIsIOS` `pwaIsStandalone` |
-| 防崩溃 | `ebhStartSentinel` `ebhDetectCrash` `ebhShowCrashPage` `ebhBackupCurrent` `ebhRestoreBackup` |
+| 资源（23）/ 卖价 / 获取途径 | `core/data/resources.mjs` |
+| 技能 / 升级曲线 | `core/data/skills.mjs` |
+| 区域 / 行动 | `zones.mjs` / `actions.mjs` |
+| 配方（22）/ 强化 / 武器 / 装备材质 | `recipes.mjs` / `upgrades.mjs` / `weapons.mjs` / `armor.mjs` |
+| 怪物 / 掉落 / Boss 常量 | `monsters.mjs` + `combat.mjs` |
+| 商店（14）/ 幸运方块（18） | `shop.mjs` / `luck-events.mjs` |
+| 探索事件（28）/ 夜间事件（4） | `explore-events.mjs` / `events-night.mjs` |
+| 成就文案 / 白名单 / 天数奖励 | `achievements.mjs` |
+| NPC（好感 6 级 / 口袋 10 件 / 商人 23 件） | `npc.mjs` |
+| 进度目标线 / 成就展示清单 | `progress.mjs` |
+| 钓鱼掉落 | `fishing.mjs` |
+
+> 新增资源/配方的「必须同步几处」见 §3.3 与 SSOT 表（§0.5）。
 
 ---
 
@@ -315,7 +303,7 @@ Boss 战为多回合自动对拼（`fight()` 内 while 循环），普通怪单�
 
 ### 3.10 成就与图鉴
 
-- **`MS`**（4834 行）是里程碑文案表，判定在 `checkMilestone(id)` 的**白名单**里，分 6 类：
+- **`MS`**（`core/data/achievements.mjs`）是里程碑文案表，判定在 `checkMilestone(id)` 的**白名单**里，分 6 类：
   - 天数（3/7/15/30/60/100/180）· 击杀/制作/探索/烹饪/强化计数 · 区域探索（for/rui/riv/hil/pyr 各 1/10/50）· Boss（兽王 boss2/3、法老 pharaoh1-3、木乃伊/墓室/黄金屋）· 装备套装（setLeather…setSteel、armorIron/armorSteel）· 特殊（totem1 死亡边缘蹦迪、dora6 家人、goldEater 钱包吞噬者、钓鱼系列）
   - **新增成就必须同时**：在 `MS` 加文案 + 在 `checkMilestone` 白名单加 id + 在对应触发点调用 `checkMilestone`
 - **天数奖励**（`DAY_REWARDS`）：3 天纯庆祝 / 7 天 30 金 / 15 天 60 金 / 30 天 +食物水 / 60 天 200 金 / 100 天 500 金 + 材料 / 180 天 1500 金 + 合金
@@ -430,7 +418,7 @@ weaponAtk()        = base.atk × (1 + 锋利等级×0.10)
 ### 5.4 离线结算与崩溃回退
 
 - `settleOffline()`：用 `lastSeen` 与当前时间差，结算自动行动产出（上限有封顶）
-- **EBH 防崩溃**（6100 行起）：启动写哨兵 → 500ms 后成功则清哨兵并异步把**整份 HTML 分片备份进 localStorage** → 下次启动若哨兵仍在（且 <1h）显示降级页，可一键加载上次能跑的版本
+- **EBH 防崩溃**（旧单文件 6100 行起；新架构**尚未搬**，见 TODO 4.4）：启动写哨兵 → 500ms 后成功则清哨兵并异步把**整份 HTML 分片备份进 localStorage** → 下次启动若哨兵仍在（且 <1h）显示降级页，可一键加载上次能跑的版本
 - 注意：EBH 备份与 SW 缓存**功能重叠**（各占一份空间），当前保留作为双重保险，动它之前要评估 iOS localStorage 配额（约 5MB）
 
 ---
@@ -522,19 +510,19 @@ if (!canSW) return;   // file:// 直接打开：不注册、不报错、游戏�
 | CI | `.github/workflows/ci.yml` | GitHub Runner | push / PR / 手动 |
 
 > **类型检查必须进门禁**（2026-10-25 定）：`src/**` 用 `allowJs + checkJs + strict`，但 CI 最初只跑 SSOT / 单测 / build，
-> 结果 245 个类型错误长期潜伏、且"CI 全绿"被误读成"类型干净"。现已并入 `npm run verify`、CI verify job 与 `release.sh` 第 0 步。
+> 结果 245 个类型错误长期潜伏、且"CI 全绿"被误读成"类型干净"。现已并入 `npm run verify`、CI verify job 与 `tools/release.mjs`。
 > **装不上依赖时 `npm run verify` 会停在类型检查**（`sh: tsc: not found`，退出码 127）——这是刻意的，不静默跳过。
 > 这种环境下先用 `npm run ssot && npm run unit` 跑剩下两项，并把类型检查交给 CI，**不要据此宣称"验证全绿"**。
 > **单测必须串行跑**：本机容器里 `node --test` 并行跑多个测试文件会 SIGSEGV（内存限制），所以脚本里统一带 `--test-concurrency=1`。
 > **容器/沙箱里 Chromium 常起不来**（本仓库实测：`/usr/bin/chromium` 打开页面即 SIGTRAP，且 `/workspace` 为 noexec + 不能建符号链接，`npm ci` 也会 EPERM）。
 > 这种情况以 **CI 的 e2e 结果为准**，不要把"本地跑不了"当成"测试通过"。
 
-- 目录：`tests/`（随仓库入库，不进发布包）；`tests/unit/` 是纯函数单测，`tests/*.js` 是浏览器 e2e
+- 目录：`tests/`（随仓库入库，不进发布包）；`tests/unit/` 纯函数单测，`tests/app.js` 新架构 e2e（跑 `dist/`），`tests/*.js` 旧 e2e（跑 `legacy/survival.html`）
 - 依赖：装在**仓库根**（`npm ci`），`tests/package.json` 只声明 `"type": "commonjs"` 用于让 e2e 用例保持 CJS
-- 命名：e2e 用 `v<版本号去点>.js`（如 `v1300.js`），回归用固定名（`version.js` / `layout.js` / `regress.js`）
+- 命名：旧 e2e 用 `v<版本号去点>.js`（如 `v1300.js`），回归用固定名（`version.js` / `layout.js` / `regress.js`）；新 e2e 只有 `app.js`
 - 技术：`puppeteer-core` + 系统 Chromium，**真实浏览器**，不用 jsdom
 - 路径：项目根 / 游戏 URL / 浏览器路径统一从 `tests/_env.js` 取（`ROOT` / `URL` / `CHROMIUM`），**禁止硬编码绝对路径**；浏览器路径可用 `CHROMIUM_PATH` 覆盖
-- e2e 统一入口：`tests/run-e2e.mjs`（默认跑发布前白名单 15 个，`--all` 跑全部）。**它把"进程崩了但一条断言都没跑"也算失败**，避免误判通过
+- e2e 统一入口：`tests/run-e2e.mjs`（默认跑 `tests/app.js`，需先 `npm run build`；`--legacy` 跑旧 15 个；`--all` 全跑）。**它把"进程崩了但一条断言都没跑"也算失败**，避免误判通过
 - 单测写法：`node:test` + `node:assert/strict`，文件 `tests/unit/*.test.mjs`
 - 写法骨架：
 
@@ -542,7 +530,7 @@ if (!canSW) return;   // file:// 直接打开：不注册、不报错、游戏�
 const puppeteer=require('puppeteer-core');
 let pass=0, fail=0;
 const ok=(c,n)=>{ c?(pass++,console.log('✅ '+n)):(fail++,console.log('❌ '+n)); };
-// ... 起本地 http 服务（python3 -m http.server）打开 survival.html
+// ... 起本地 http 服务：新架构打开 dist/index.html；旧用例打开 legacy/survival.html
 // 断言 → 结束时 console.log(`专项: ${pass} 通过 / ${fail} 失败`); process.exit(fail?1:0);
 ```
 
@@ -550,7 +538,7 @@ const ok=(c,n)=>{ c?(pass++,console.log('✅ '+n)):(fail++,console.log('❌ '+n)
   - `doAction` 会推进时间 → 循环测试需每轮重置 `G.stam=100; G.hour=8; G.food=100; G.water=100; G.dead=false; G.hp=100`
   - 概率类断言偶发波动 → 连跑 3 次确认，或打桩 `Math.random`
   - `page.evaluate` 里可直接调用页面全局函数（`newGame()`、`lostOpts()` 等）
-- 每次改动至少跑：`version.js`（版本/存档兼容）+ 与该功能对应的专项 + `layout.js`（布局）
+- 每次改动至少跑：`npm run verify`；能起浏览器时加 `node tests/run-e2e.mjs`（新架构冒烟）；改了旧基准/旧行为时加 `--legacy`
 
 ### 8.2 发布流程（`tools/release.mjs`）
 
@@ -606,7 +594,7 @@ git push origin master --tags     # CI 全绿 → Deploy workflow 发 Pages
 
 # 游戏资料附录
 
-> 下列数据**逐条取自源码**（`survival.html` 对应数据表）。要改数值请改表，不要改本文件；
+> 下列数据**逐条取自源码**（`src/core/data/*.mjs`；旧实现冻结在 `legacy/survival.html`）。要改数值请改表，不要改本文件；
 > 反过来，改了表请回来同步本文件。材料名统一用 `RES_NAMES` 里的中文（🪵木材 / 🪨石头 / 🍖生食 / 🍗熟食 / 💧生水 / 🚰净水 / 🌿草药 / 🔩金属 / 👜皮革 / ⚙️合金 / 🔮符石 / 🥉铜锭 / 🥈银锭 / 🥇金锭 / 🥉铜矿石 / 🥈银矿石 / 🥇金矿石 / 🎲幸运方块 / 🪬不死图腾 / 💉肾上腺素 / 📜经验药水 / 🎰抽奖券 / 🧪生命药剂）。
 
 ## 附录 A · 配方全表（22 条）

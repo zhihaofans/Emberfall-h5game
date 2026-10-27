@@ -5,7 +5,7 @@
 ## 玩
 
 - 线上（GitHub Pages，新版 `dist/`）：<https://zhihaofans.github.io/Emberfall-h5game/>
-- 旧的单文件版本：`survival.html`（直接双击；重构切换前保留作回退）
+- 旧的单文件版本：`legacy/survival.html`（冻结的 2.0.0，只作单测对拍基准，不再发布）
 
 ## 开发
 

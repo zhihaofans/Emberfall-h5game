@@ -320,3 +320,19 @@ textarea#exportArea,textarea#importArea{
 .armor-sum b{color:var(--accent)}
 .armor-sum .mult{font-size:10.5px;color:var(--txt-faint)}
 .craft-item .tag{font-size:10px;color:var(--yellow);margin-left:5px}
+
+/* ============ 启动失败降级页（dev/guard.mjs） ============ */
+#recovery{
+  position:fixed;inset:0;z-index:99;background:rgba(10,8,6,.94);
+  display:flex;align-items:center;justify-content:center;padding:18px;
+}
+#recovery .rc-card{
+  width:100%;max-width:420px;background:var(--bg2);border:1px solid var(--line);
+  border-radius:14px;padding:18px 16px;
+}
+#recovery h3{font-size:16px;color:var(--warn);margin-bottom:8px}
+#recovery p{font-size:12.5px;color:var(--txt-dim);line-height:1.7;margin-bottom:10px}
+#recovery .rc-err{
+  font-size:11px;color:#f0a08a;background:#1c1210;border:1px solid #5c2a20;border-radius:8px;
+  padding:8px;margin-bottom:10px;white-space:pre-wrap;word-break:break-word;
+}

@@ -160,6 +160,17 @@ async function clickMenu(page, label) {
     const woodAfter = await readWood(page);
     ok(woodAfter === woodBefore, `刷新后木材不变（${woodAfter}）`);
 
+    // 离线结算：把 lastSeen 往回拨 3 小时，刷新后日志里应有「你离开了 3 小时」
+    await page.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem('ember_save_v1'));
+      raw.g.lastSeen = Date.now() - 3 * 3600 * 1000;
+      localStorage.setItem('ember_save_v1', JSON.stringify(raw));
+    });
+    await page.reload({ waitUntil: 'networkidle0' });
+    await page.waitForSelector('#logwrap');
+    const logs = await page.$eval('#logwrap', (e) => e.textContent);
+    ok(/你离开了 3 小时/.test(logs), '离线结算日志出现');
+
     ok(errors.length === 0, `0 条 pageerror${errors.length ? '：' + errors[0] : ''}`);
   } catch (err) {
     fail++;

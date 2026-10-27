@@ -417,7 +417,7 @@ weaponAtk()        = base.atk × (1 + 锋利等级×0.10)
 
 ### 5.4 离线结算与崩溃回退
 
-- `settleOffline()`：用 `lastSeen` 与当前时间差，结算自动行动产出（上限有封顶）
+- `settleOffline()`（`core/offline.mjs`）：用 `lastSeen` 与当前时间差结算离线产出（8 小时封顶、半小时粒度；导入存档会刷新 `lastSeen` 从而跳过）
 - **EBH 防崩溃**（旧单文件 6100 行起；新架构**尚未搬**，见 TODO 4.4）：启动写哨兵 → 500ms 后成功则清哨兵并异步把**整份 HTML 分片备份进 localStorage** → 下次启动若哨兵仍在（且 <1h）显示降级页，可一键加载上次能跑的版本
 - 注意：EBH 备份与 SW 缓存**功能重叠**（各占一份空间），当前保留作为双重保险，动它之前要评估 iOS localStorage 配额（约 5MB）
 
@@ -578,7 +578,7 @@ git push origin master --tags     # CI 全绿 → Deploy workflow 发 Pages
 | 项 | 状态 | 说明 |
 |---|---|---|
 | 自动厨房/太阳能烧水壶在制作面板不显示 | **待修** | v1.28.0 加了「材料类型获取过才显示」的过滤，新档没有符石 → 含符石的 tier5 配方被隐藏；`v1160.js` 的「自动厨房可见」断言一直红着 |
-| EBH 整页备份占用 localStorage | 观察中 | 与 SW 缓存重复；iOS 配额约 5MB，若后续加内容需评估是否降级为「仅保留哨兵」 |
+| 启动守卫 | 已实现 | `src/dev/guard.mjs`：哨兵 + 降级页（重载 / 清 SW 缓存 / 仍然进入），不再备份整份 HTML |
 | PWA 安装提示频次 | 观察中 | 目前 Android 每次访问都可能提示（用 `pwa_tip_install` 只挡了部分场景），如嫌烦可改为「仅首次 + 菜单入口」 |
 | 区域成就 for/rui/riv/hil/pyr 的 50 次档 | 未验证 | 长周期内容，缺少自动化覆盖 |
 

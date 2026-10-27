@@ -345,7 +345,7 @@ import { checkArmorSet } from './core/achievements.mjs';
 
 | 4.2 | `ui/dom.ts` 小部件 | 复用现有 `toast / log / modal` 形态，不另造一套 | 可视化回归截图（窄屏 390×844 与桌面各一张） |
 | 4.3 | 事件绑定集中化 | 替掉 HTML 内联 `onclick="fn()"`（当前有大量全局函数被内联引用） | 产物里 `onclick=` 出现次数 = 0；键盘/触控均可用 |
-| 4.4 | `dev/guard.ts` | 6100–6300 防崩溃（EBH 哨兵 + HTML 备份） | 故意让启动抛错，能出降级页并可一键恢复 |
+| 4.4 | `dev/guard.ts`（落地为 `dev/guard.mjs`） | ✅ **已完成（2026-10-27）**：启动前写哨兵、成功后清；上次没走完（1 小时内）→ 降级页（重新加载 / 清 SW 缓存重载 / 仍然进入），并展示上次脚本错误；多文件产物不再备份整份 HTML | 故意让启动抛错 → 下次打开出降级页；清缓存后能恢复；存档不动 |
 | 4.5 | `src/pwa.ts`（实际落地为 `src/pwa.mjs`） | ✅ **已完成（2026-10-27）**：注册条件 / 更新提示三源 / 离线标识 / 安装引导 / 持久化存储；菜单加「📲 安装到桌面」入口；`src/index.html` 补齐 manifest 与 iOS 图标/启动图标签 | SW 只在安全上下文注册；`https` 下首次安装不误报"已更新"；断网重载界面+存档正常 |
 
 - **成本**：中。**风险**：渲染层最容易在拆分时引入"少更新一次"的 bug —— 建议先建立 `renderAll()` 的调用点清单，再动手。
@@ -378,8 +378,8 @@ import { checkArmorSet } from './core/achievements.mjs';
 | 5.2 | `tools/stamp.mjs`：`--bump/--set/--build`，写版本唯一源并回读校验；同时从 `CHANGELOG.md` 生成游戏内 `CHANGELOG` 数组 —— ✅ **已完成（2026-10-27）**：`--bump major\|minor\|patch` / `--set` / `--build` / `--note` / `--check`，只写 `version.json`，随后调 `sync-meta` 生成三处并回读 | 三处（html / sw / version.json）不一致时直接失败；`CHANGELOG.md` 与内联数组逐条一致（`check-ssot` 在管） |
 | 5.3 | `tools/package.mjs`：只打运行时文件 zip —— ✅ **已完成（2026-10-27）**：系统 `zip` 打 `dist/`，包内回读 `version.json` / `sw.js` 的 `BUILD`，并按产物 mtime 判新鲜度 | 包内版本一致性核对 + 防过期 |
 | 5.4 | 替换 `release.sh` —— ✅ **已完成（2026-10-27）**：`tools/release.mjs` 负责 SSOT → tsc → 单测 →（可选 e2e）→ 构建 → 打包；`release.sh` 退化成一层包装 | 发布不再由 bash 里 `git add -A` 完成；commit/tag 由你执行 |
-| 5.5 | CI（GitHub Actions） | typecheck → 单测 → build → e2e → deploy，全绿才发。**2026-10-25**：`npm run typecheck` 并入 `verify` / CI verify job / `release.sh`。**2026-10-27**：新增 `.github/workflows/deploy.yml`（CI 成功 → 构建 dist → 发 Pages），并补 `README` 的开发/部署说明；**仍需你在仓库 Settings → Pages 把 Source 改成 GitHub Actions** |
-| 5.6 | e2e 只留关键路径 | 启动、存档往返、离线重载、安装提示、战斗一场、Boss 一场 |
+| 5.5 | CI（GitHub Actions） | typecheck → 单测 → build → e2e → deploy，全绿才发。**2026-10-25**：`npm run typecheck` 并入 `verify` / CI verify job / `release.sh`。**2026-10-27**：新增 `.github/workflows/deploy.yml`（CI 成功 → 构建 dist → 发 Pages），并补 `README` 的开发/部署说明；**2026-10-27 改为**：`Deploy` 构建后强推独立 `gh-pages` 分支，Pages Source = Deploy from a branch → `gh-pages` / root（已上线） |
+| 5.6 | e2e 只留关键路径 | **部分完成（2026-10-27）**：`tests/app.js` 覆盖 启动 / 12 行动 / 菜单 / 进度 / 二维码 / 存档往返 / 离线结算 / 0 pageerror；**待补**：断网重载、安装提示、战斗与 Boss |
 | 5.7 | 文档同步 | `AGENT.md` 代码地图按新目录重写；`CHANGELOG` 补 3.0.0；`README` 加开发命令 |
 | 5.8 | **版本号旁显示 git hash** —— ✅ **已完成（2026-10-27）**：`tools/lib/git.mjs` 取短 hash（脏工作区 `-dirty`），vite 注入 `__APP_COMMIT__`，`dist/version.json` 写 `sha` 并自检；游戏内文案统一走 `core/version.mjs` 的 `versionLabel()`（启动日志 / 主菜单 / 版本规则卡片） | 显示值与 `git rev-parse --short HEAD` 一致；有未提交改动显示 `-dirty`；无 git 环境显示 `unknown`；构建自检 sha 与 HEAD |
 
@@ -395,6 +395,13 @@ import { checkArmorSet } from './core/achievements.mjs';
 **实测**：`stamp --bump patch` → v2.0.1 / build 103 / 三处同步 → `git checkout` 回滚后 `--check` 仍绿；
 `release` 全流程 exit 0，包 1230.0 KB（21 个产物 / 1496.8 KB）。
 **未验证**：`--e2e` 分支（本地无 Chromium，CI 覆盖）；zip 在 Windows 解压的中文文件名（用系统 zip，UTF-8 与旧包一致）。
+
+### 4.4.1 启动守卫实施记录（2026-10-27）
+
+- `src/dev/guard.mjs`：`guardStart` / `guardMarkBooted` / `guardRecord` / `readGuard`（纯函数，storage 可注入）+ `showRecovery` / `clearCachesAndReload`（DOM / SW）
+- 流程：启动写哨兵 → `boot()` + `bootPWA()` → 清哨兵；下次若哨兵仍在（1 小时内）先出降级页，可「重新加载 / 清 SW 缓存重载 / 仍然进入」
+- 与旧 EBH 的差异：多文件产物不做整份 HTML 备份（没法定点回滚），改为清缓存 + 保留存档
+- 验证：单测 7 条（正常启动 / 崩溃残留 / 过期 / 时钟回拨 / 错误透传 / 坏 JSON / 清标记），e2e 覆盖离线结算后仍 0 pageerror
 
 ### 5.5.1 Pages 部署记录（2026-10-27）
 
@@ -441,11 +448,11 @@ import { checkArmorSet } from './core/achievements.mjs';
 
 | 里程碑 | 内容 | 完成标志 |
 |---|---|---|
-| **M1** | 骨架可构建 | 单文件产物经本地 http 打开正常，0 报错 |
-| **M2** | 存档可迁移 | fmt 11 真档 round-trip 全绿 |
-| **M3** | core 全分层 | 9 个 core 模块 + 单测，`tsc` 干净 |
+| **M1** | 骨架可构建 | ✅ 2026-10-25：`npm run build` 出 `dist/`，本地 http 打开 0 报错 |
+| **M2** | 存档可迁移 | ✅ 2026-10-25：fmt 1→11 迁移链 + round-trip 单测全绿 |
+| **M3** | core 全分层 | ✅ 2026-10-27：20 个 core 模块 + 18 个数据文件，`tsc` 0 错误 |
 | **M4** | 表现层拆完 | ✅ 2026-10-27：功能与旧版对齐；旧文件冻结到 `legacy/`，根 `index.html` 删除 |
-| **M5** | 流水线 + CI | 一条命令出包，CI 全绿 |
+| **M5** | 流水线 + CI | ✅ 2026-10-27：`node tools/release.mjs` 出包；CI（verify + e2e）全绿，Deploy 发 gh-pages |
 | **M6** | 3.0.0 发版 | ✅ 2026-10-27：老档可读（fmt 11）、PWA 可装、离线可玩、`gh-pages` 部署 |
 
 ---

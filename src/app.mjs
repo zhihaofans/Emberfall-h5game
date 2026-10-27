@@ -35,6 +35,7 @@ import { resolveOption, lostOpts } from './core/explore-events.mjs';
 import { pickMonster, fightRound, fightBoss, flee, bossFlee, bait, bossStats, pharaohStats } from './core/combat.mjs';
 import { checkMilestone, checkStageAchieve, checkArmorSet } from './core/achievements.mjs';
 import { fillResText } from './core/effects.mjs';
+import { settleOffline } from './core/offline.mjs';
 import { pickMerchantGoods, canTrade, buyMerchant, doraInfo, doraGoods, DORA_GIFTS, canGift, giftDora, canBuyDoraGood, buyDoraGood, addDoraFav } from './core/npc.mjs';
 import { markEncounter, wikiProgress } from './core/wiki.mjs';
 import { monsterEntries, materialEntries } from './core/bestiary.mjs';
@@ -1398,6 +1399,12 @@ export function boot() {
   G = loadSave() || createNewState();
 
   logBuffer.length = 0;
+
+  // 离线结算：距上次保存的时长（导入存档时 adoptSave 会刷新 lastSeen，不会误结算）
+  const away = Date.now() - (Number(G.lastSeen) || Date.now());
+  const off = settleOffline(G, away);
+  for (const l of off.logs) log(l.text, l.cls);
+
   log(`末日余烬 ${APP_LABEL} · 文字生存冒险`, 'info');
   log('点击下方按钮开始行动；可以长按「自动」类行动进入放置模式。', 'sys');
 

@@ -12,7 +12,7 @@ import { ACTIONS } from '../../src/core/data/actions.mjs';
 import { startAuto, stopAuto, nextAutoAction } from '../../src/core/actions.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const html = readFileSync(resolve(ROOT, 'survival.html'), 'utf8');
+const html = readFileSync(resolve(ROOT, 'legacy/survival.html'), 'utf8');
 const NOW = 1_700_000_000_000;
 
 /** 在 vm 里重建旧实现（渲染/计时器/行动执行全部桩掉） */

@@ -16,7 +16,7 @@ import { SHOP } from '../../src/core/data/shop.mjs';
 import { LUCK_EVENTS } from '../../src/core/data/luck-events.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const html = readFileSync(resolve(ROOT, 'survival.html'), 'utf8');
+const html = readFileSync(resolve(ROOT, 'legacy/survival.html'), 'utf8');
 const NOW = 1_700_000_000_000;
 const R = 0.42; // 固定随机数
 

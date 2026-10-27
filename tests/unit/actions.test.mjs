@@ -14,7 +14,7 @@ import { ACTIONS } from '../../src/core/data/actions.mjs';
 import { checkAction, payActionCost, interruptsAuto } from '../../src/core/actions.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const html = readFileSync(resolve(ROOT, 'survival.html'), 'utf8');
+const html = readFileSync(resolve(ROOT, 'legacy/survival.html'), 'utf8');
 const NOW = 1_700_000_000_000;
 
 /** 把旧 doAction 截到「扣精力之前」，补一个 PASSED 返回值 */

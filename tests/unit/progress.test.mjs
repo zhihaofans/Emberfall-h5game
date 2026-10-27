@@ -21,7 +21,7 @@ import { WEAPONS } from '../../src/core/data/weapons.mjs';
 import { WHITELIST, DAY_MILESTONES } from '../../src/core/data/achievements.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const html = readFileSync(resolve(ROOT, 'survival.html'), 'utf8');
+const html = readFileSync(resolve(ROOT, 'legacy/survival.html'), 'utf8');
 const NOW = 1_700_000_000_000;
 
 test('目标线与成就清单：与旧 openProgress 逐项一致', () => {

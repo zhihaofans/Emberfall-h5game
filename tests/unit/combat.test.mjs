@@ -11,7 +11,7 @@ import { BEASTS, ROBOTS, REGION_BEASTS, MOON_BEASTS } from '../../src/core/data/
 import { weaponAtk, bossStats, pharaohStats, isFullMoon, pickMonster, bestiaryIds } from '../../src/core/combat.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const html = readFileSync(resolve(ROOT, 'survival.html'), 'utf8');
+const html = readFileSync(resolve(ROOT, 'legacy/survival.html'), 'utf8');
 const NOW = 1_700_000_000_000;
 
 function extractFn(name) {

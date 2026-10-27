@@ -4,10 +4,11 @@
 // 为什么需要它：原来的用例散在 tests/ 下、由 release.sh 里的 bash 循环调用，
 // 本地与 CI 各写一套容易漂移。这里只留一个入口。
 //
-// 用法：
-//   node tests/run-e2e.mjs            跑发布前白名单（15 个）
+// 用法（M4 之后默认跑新架构）：
+//   node tests/run-e2e.mjs            跑新架构冒烟（tests/app.js，需先 npm run build）
+//   node tests/run-e2e.mjs --legacy   跑旧 survival.html 的 15 个历史用例（冻结基准）
 //   node tests/run-e2e.mjs --all      跑 tests/ 下全部用例
-//   node tests/run-e2e.mjs version.js 只跑指定文件
+//   node tests/run-e2e.mjs app.js     只跑指定文件
 //
 // 环境：CHROMIUM_PATH 可指定浏览器（默认 /usr/bin/chromium）。
 // 退出码：0 = 全绿；1 = 有用例失败或无断言。
@@ -20,23 +21,31 @@ import { fileURLToPath } from 'node:url';
 const TESTS = dirname(fileURLToPath(import.meta.url));
 const TIMEOUT_MS = 180_000;
 
-// 发布前必跑的白名单（与 AGENT.md §8.2 对应）
-const WHITELIST = [
+// 新架构的默认用例（对 dist/ 做真浏览器冒烟）
+const NEW_SUITE = ['app.js'];
+
+// 旧单文件版本的历史用例（对 legacy/survival.html；仅 --legacy 时跑）
+const LEGACY_WHITELIST = [
   'test.js', 'version.js', 'melvor.js', 'regress.js', 'layout.js',
   'v1100.js', 'v1110.js', 'v1111.js', 'v1120.js', 'v1220.js', 'v1230.js',
   'v1298.js', 'v1299.js', 'v1300.js', 'v200.js',
 ];
 
 const args = process.argv.slice(2);
+const flags = args.filter((a) => a.startsWith('--'));
+const given = args.filter((a) => !a.startsWith('--'));
+
 let files;
-if (args.includes('--all')) {
+if (given.length) {
+  files = given;
+} else if (flags.includes('--all')) {
   files = readdirSync(TESTS)
     .filter((f) => f.endsWith('.js') && !['run-e2e.mjs', '_env.js'].includes(f))
     .sort();
-} else if (args.length) {
-  files = args;
+} else if (flags.includes('--legacy')) {
+  files = LEGACY_WHITELIST;
 } else {
-  files = WHITELIST;
+  files = NEW_SUITE;
 }
 
 const results = [];

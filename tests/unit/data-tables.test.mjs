@@ -14,7 +14,7 @@ import { ACTIONS } from '../../src/core/data/actions.mjs';
 import { RESOURCES } from '../../src/core/data/resources.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const html = readFileSync(resolve(ROOT, 'survival.html'), 'utf8');
+const html = readFileSync(resolve(ROOT, 'legacy/survival.html'), 'utf8');
 
 /** 把旧文件里一段纯字面量代码求值，拿到原始数据
  *  注意：vm 里创建的对象属于另一个 realm，原型不同 → deepStrictEqual 会报

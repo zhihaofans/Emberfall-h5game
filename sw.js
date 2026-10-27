@@ -14,16 +14,11 @@ const BUILD = '102';                 // 发布脚本注入构建号（BUILD_CODE
 const CACHE = 'emberfall-' + BUILD;
 const CACHE_PREFIX = 'emberfall-';
 
+// 占位清单：tools/build.mjs 会按 dist/ 真实产物整段重写（这里只用于源码可读性）。
 const ASSETS = [
   './',
   './index.html',
-  './survival.html',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-maskable-512.png',
-  './icons/apple-touch-icon-180.png',
-  './icons/favicon-32.png'
+  './manifest.json'
 ];
 
 /* 安装：预缓存 app shell */

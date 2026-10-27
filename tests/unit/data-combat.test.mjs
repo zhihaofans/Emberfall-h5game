@@ -12,7 +12,7 @@ import { BEASTS, ROBOTS, REGION_BEASTS, MOON_BEASTS } from '../../src/core/data/
 import { RESOURCES } from '../../src/core/data/resources.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const html = readFileSync(resolve(ROOT, 'survival.html'), 'utf8');
+const html = readFileSync(resolve(ROOT, 'legacy/survival.html'), 'utf8');
 const RES_IDS = new Set(RESOURCES.map((r) => r.id));
 
 function evalOld(from, to) {

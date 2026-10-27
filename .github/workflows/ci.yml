@@ -50,6 +50,8 @@ jobs:
           cache: npm
       - name: 安装依赖
         run: npm ci
+      - name: 构建 dist/（新架构 e2e 跑产物）
+        run: npm run build
       - name: 准备 Chromium
         id: chrome
         uses: browser-actions/setup-chrome@v1

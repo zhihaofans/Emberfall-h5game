@@ -46,10 +46,9 @@ const unitFiles = readdirSync(join(ROOT, 'tests', 'unit'))
 run('SSOT 校验', process.execPath, ['tools/check-ssot.mjs']);
 run('类型检查', 'npm', ['run', '--silent', 'typecheck']);
 run('单元测试', process.execPath, ['--test', '--test-concurrency=1', ...unitFiles]);
-if (withE2e) run('e2e（真浏览器）', process.execPath, ['tests/run-e2e.mjs']);
-else console.log('\n（跳过 e2e：本地没浏览器时以 CI 为准；需要时加 --e2e）');
-
 run('构建 dist/', process.execPath, ['tools/build.mjs']);
+if (withE2e) run('e2e（真浏览器，跑 dist/）', process.execPath, ['tests/run-e2e.mjs']);
+else console.log('\n（跳过 e2e：本地没浏览器时以 CI 为准；需要时加 --e2e）');
 if (withPackage) run('打包', process.execPath, ['tools/package.mjs']);
 
 console.log('\n✅ 流水线完成。接下来由你确认并执行：');

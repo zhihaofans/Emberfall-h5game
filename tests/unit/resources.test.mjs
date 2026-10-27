@@ -11,7 +11,7 @@ import { objectBody, flatPairs } from '../../tools/lib/source.mjs';
 import { RESOURCES, RES_IDS, resNames, resPrices, getWhere, defaultRes } from '../../src/core/data/resources.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const html = readFileSync(resolve(ROOT, 'survival.html'), 'utf8');
+const html = readFileSync(resolve(ROOT, 'legacy/survival.html'), 'utf8');
 
 // 从旧文件里读出的 5 处
 const oldNames = flatPairs(objectBody(html, 'RES_NAMES'));

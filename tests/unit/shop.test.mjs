@@ -15,7 +15,7 @@ import { SHOP, SHOP_GROUPS } from '../../src/core/data/shop.mjs';
 import { buyShopItem, canBuyShop, canBuyAnyShop } from '../../src/core/shop.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const html = readFileSync(resolve(ROOT, 'survival.html'), 'utf8');
+const html = readFileSync(resolve(ROOT, 'legacy/survival.html'), 'utf8');
 const NOW = 1_700_000_000_000;
 
 /** 从旧文件的 openShop() 里切出分区标题与两串商品 id */

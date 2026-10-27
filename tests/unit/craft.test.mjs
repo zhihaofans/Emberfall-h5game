@@ -20,7 +20,7 @@ import {
 } from '../../src/core/craft.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const html = readFileSync(resolve(ROOT, 'survival.html'), 'utf8');
+const html = readFileSync(resolve(ROOT, 'legacy/survival.html'), 'utf8');
 const NOW = 1_700_000_000_000;
 
 /** 从源码里截出某个函数（切到下一个 function 或注释块） */

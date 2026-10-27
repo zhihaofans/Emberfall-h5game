@@ -10,7 +10,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseChangelogMd, parseChangelogInline } from './lib/changelog.mjs';
+import { parseChangelogMd } from './lib/changelog.mjs';
 import { objectBody, topLevelKeys, flatKeys } from './lib/source.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -43,66 +43,55 @@ function warn(name, detail) {
 // 把 md 里的 CHANGELOG 解成 [{ver,date,title,notes[]}] —— 实现在 tools/lib/changelog.mjs（与 sync-meta 共用）
 
 /* ---------- 1. 版本号 / 构建号 ---------- */
+// M4 之后唯一源是 version.json；survival.html 已冻结到 legacy/，不再参与版本同步。
 function checkVersion() {
   console.log('[1/7] 版本与构建号');
-  const html = read('survival.html');
   const sw = read('sw.js');
   const meta = readJson('version.json');
 
-  const hv = /const GAME_VERSION = '([^']+)'/.exec(html)?.[1];
-  const hb = /const BUILD_CODE = (\d+)/.exec(html)?.[1];
   const sb = /const BUILD = '([^']*)'/.exec(sw)?.[1];
-
-  if (!hv || !hb) return bad('html 里找不到 GAME_VERSION / BUILD_CODE');
-  if (hv !== meta.ver) bad('version.json.ver ≠ GAME_VERSION', `${meta.ver} vs ${hv}`);
-  else ok('ver 一致', `v${hv}`);
-  if (String(meta.build) !== hb) bad('version.json.build ≠ BUILD_CODE', `${meta.build} vs ${hb}`);
-  else ok('build 一致', `build ${hb}`);
-  if (sb !== hb) bad('sw.js BUILD ≠ BUILD_CODE', `${sb} vs ${hb}`);
-  else ok('sw.js BUILD 一致', `BUILD ${sb}`);
+  if (!sb) return bad('sw.js 里找不到 BUILD');
+  if (String(meta.build) !== sb) bad('version.json.build ≠ sw.js BUILD', `${meta.build} vs ${sb}`);
+  else ok('build 一致', `build ${sb}`);
+  ok('ver 来自唯一源', `v${meta.ver}`);
   const cacheOk = /const CACHE = 'emberfall-' \+ BUILD;/.test(sw);
   if (!cacheOk) bad('sw.js 的 CACHE 不是「前缀 + BUILD」拼接式');
   else ok('缓存名随 BUILD 变化');
 }
 
 /* ---------- 2. CHANGELOG ---------- */
+// M4 之后不再有内联数组：CHANGELOG.md 是唯一源，这里只校验「文件头统计 ↔ 实际条目」。
 function checkChangelog() {
-  console.log('[2/7] CHANGELOG.md ↔ 内联数组');
+  console.log('[2/7] CHANGELOG.md');
   if (!exists('CHANGELOG.md')) return bad('缺少 CHANGELOG.md');
-  const md = parseChangelogMd(read('CHANGELOG.md'));
-  const inline = parseChangelogInline(read('survival.html'));
+  const raw = read('CHANGELOG.md');
+  const md = parseChangelogMd(raw);
+  if (!md.length) return bad('CHANGELOG.md 解析出 0 个版本');
 
-  const mdN = md.reduce((a, v) => a + v.notes.length, 0);
-  const inN = inline.reduce((a, v) => a + v.notes.length, 0);
-  if (md.length !== inline.length) bad('版本数不一致', `md ${md.length} / 内联 ${inline.length}`);
-  if (mdN !== inN) bad('条目数不一致', `md ${mdN} / 内联 ${inN}`);
-
-  const mdMap = new Map(md.map((v) => [v.ver, v]));
-  const inMap = new Map(inline.map((v) => [v.ver, v]));
-  const onlyMd = [...mdMap.keys()].filter((k) => !inMap.has(k));
-  const onlyIn = [...inMap.keys()].filter((k) => !mdMap.has(k));
-  if (onlyMd.length) bad('只在 md 里的版本', onlyMd.join(', '));
-  if (onlyIn.length) bad('只在 html 里的版本', onlyIn.join(', '));
-
-  let diff = 0;
-  for (const [ver, a] of mdMap) {
-    const b = inMap.get(ver);
-    if (!b) continue;
-    if (a.date !== b.date || a.title !== b.title || JSON.stringify(a.notes) !== JSON.stringify(b.notes)) {
-      diff++;
-      if (diff <= 3) bad(`版本 v${ver} 内容不同`, `title/notes 有差异（${a.notes.length} vs ${b.notes.length} 条）`);
-    }
+  const notes = md.reduce((a, v) => a + v.notes.length, 0);
+  const head = /共 \*\*(\d+) 个版本 \/ (\d+) 条更新\*\*/.exec(raw);
+  if (!head) {
+    warn('文件头没有统计行', '期望：共 **N 个版本 / M 条更新**');
+  } else if (Number(head[1]) !== md.length || Number(head[2]) !== notes) {
+    bad('文件头统计与内容不一致', `头 ${head[1]}/${head[2]}，实际 ${md.length}/${notes}`);
+  } else {
+    ok('文件头统计一致', `${md.length} 版 / ${notes} 条`);
   }
-  if (!fails.length && diff === 0 && md.length === inline.length && mdN === inN) {
-    ok('逐条一致', `${md.length} 版 / ${mdN} 条`);
-  }
+
+  const missingTitle = md.filter((v) => !String(v.title || '').trim()).map((v) => v.ver);
+  if (missingTitle.length) bad('有版本缺标题', missingTitle.join(', '));
+  else ok('每条都有标题');
+
+  const vers = md.map((v) => v.ver);
+  if (new Set(vers).size !== vers.length) bad('版本号有重复');
+  else ok('版本号唯一', `${vers.length} 个`);
 }
 
 /* ---------- 3. 图标 ---------- */
 function checkIcons() {
   console.log('[3/7] 图标清单');
   const manifest = readJson('manifest.json');
-  const html = read('survival.html');
+  const html = read('src/index.html');
   const listed = (manifest.icons || []).map((i) => String(i.src).replace(/^\.\//, ''));
 
   for (const p of listed) {
@@ -126,7 +115,7 @@ function checkIcons() {
 /* ---------- 4. 启动图 ---------- */
 function checkSplash() {
   console.log('[4/7] iOS 启动图');
-  const html = read('survival.html');
+  const html = read('src/index.html');
   const refs = [...html.matchAll(/<link rel="apple-touch-startup-image"[^>]*href="\.\/([^"]+)"/g)].map((m) => m[1]);
   for (const p of refs) {
     if (!exists(p)) bad('html 引用的启动图不存在', p);
@@ -140,28 +129,34 @@ function checkSplash() {
 }
 
 /* ---------- 5. SW 预缓存清单 ---------- */
+// 源 sw.js 只是模板：ASSETS 由 tools/build.mjs 按 dist/ 真实产物生成。
+// 所以这里校验的是 dist/sw.js（构建过才有意义），而不是根目录那份。
 function checkSwAssets() {
   console.log('[5/7] Service Worker 预缓存清单');
-  const sw = read('sw.js');
+  if (!exists('dist/sw.js')) {
+    warn('dist/ 还没构建', '先 npm run build 再校验预缓存清单');
+    return;
+  }
+  const sw = read('dist/sw.js');
   const block = /const ASSETS = \[([\s\S]*?)\];/.exec(sw)?.[1];
-  if (!block) return bad('sw.js 里找不到 ASSETS 数组');
+  if (!block) return bad('dist/sw.js 里找不到 ASSETS 数组');
   const assets = [...block.matchAll(/'([^']+)'/g)].map((m) => m[1]).filter((p) => p !== './');
-  const missing = assets.filter((p) => !exists(p.replace(/^\.\//, '')));
-  if (missing.length) bad('ASSETS 里有不存在的文件', missing.join(', '));
-  else ok('ASSETS 全部可解析', `${assets.length} 项`);
+  const missing = assets.filter((p) => !exists('dist/' + p.replace(/^\.\//, '')));
+  if (missing.length) bad('ASSETS 里有不存在的产物', missing.join(', '));
+  else ok('ASSETS 全部可解析', `${assets.length} 项（dist/）`);
 
-  // 运行时必备文件必须在预缓存里，否则离线会缺
-  // 注意：sw.js 自身不需要预缓存；version.json 故意走网络优先（用于发现新版本），也不入缓存
-  const required = ['survival.html', 'index.html', 'manifest.json'];
+  const required = ['index.html', 'manifest.json'];
   const notCached = required.filter((f) => !assets.includes('./' + f));
+  const hasJs = assets.some((p) => /^\.\/assets\/index-[^/]+\.js$/.test(p));
   if (notCached.length) bad('运行时文件没进预缓存', notCached.join(', '));
-  else ok('运行时必备文件都在预缓存里', `${required.length} 个`);
+  else if (!hasJs) bad('主 JS 没进预缓存');
+  else ok('运行时必备文件都在预缓存里', `${required.length} 个 + 主 JS`);
 }
 
 /* ---------- 6. 资源定义 ---------- */
 function checkResources() {
-  console.log('[6/7] 资源定义（5 处派生）');
-  const html = read('survival.html');
+  console.log('[6/7] 资源定义（对拍 legacy/survival.html）');
+  const html = read('legacy/survival.html');
 
   const names = objectBody(html, 'RES_NAMES');
   const prices = objectBody(html, 'RES_PRICE');

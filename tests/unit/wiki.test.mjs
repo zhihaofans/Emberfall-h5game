@@ -11,7 +11,7 @@ import { BESTIARY_IDS, markSeen, isUnlocked, markEncounter, wikiProgress } from 
 import { pickMonster } from '../../src/core/combat.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const html = readFileSync(resolve(ROOT, 'survival.html'), 'utf8');
+const html = readFileSync(resolve(ROOT, 'legacy/survival.html'), 'utf8');
 const NOW = 1_700_000_000_000;
 
 function buildOld() {

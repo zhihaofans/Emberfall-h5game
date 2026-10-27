@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { objectBody, topLevelKeys, flatKeys } from '../../tools/lib/source.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const html = readFileSync(resolve(ROOT, 'survival.html'), 'utf8');
+const html = readFileSync(resolve(ROOT, 'legacy/survival.html'), 'utf8');
 
 test('objectBody 能取出真实数据表', () => {
   const body = objectBody(html, 'RES_NAMES');

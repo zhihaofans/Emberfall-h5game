@@ -5,7 +5,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 const ROOT = path.resolve(__dirname, '..');      // 仓库根目录（tests/ 的上一级）
-const GAME = path.join(ROOT, 'survival.html');   // 游戏入口
+const GAME = path.join(ROOT, 'legacy', 'survival.html');   // 游戏入口
 const URL = pathToFileURL(GAME).href;            // file:// 形式，可直接喂给 page.goto
 const CHROMIUM = process.env.CHROMIUM_PATH || '/usr/bin/chromium';
 

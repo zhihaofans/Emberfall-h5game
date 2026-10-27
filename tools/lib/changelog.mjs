@@ -2,22 +2,11 @@
 //
 // 唯一源：仓库根的 CHANGELOG.md
 // 生成物：survival.html 里的内联 `const CHANGELOG = [...]`
+//
+// 解析器本身已挪到 `src/core/changelog.mjs`（新架构运行时也要用它），这里 re-export，
+// 保证「md → 条目」只有一份实现。
 
-// md → [{ver, date, title, notes[]}]
-export function parseChangelogMd(md) {
-  const out = [];
-  let cur = null;
-  for (const ln of md.split('\n')) {
-    const h = ln.match(/^## v([0-9.]+) · (\d{4}-\d{2}-\d{2})/);
-    if (h) { cur = { ver: h[1], date: h[2], title: '', notes: [] }; out.push(cur); continue; }
-    if (!cur) continue;
-    const t = ln.match(/^\*\*(.+)\*\*$/);
-    if (t) { cur.title = t[1]; continue; }
-    const n = ln.match(/^- (.+)$/);
-    if (n) cur.notes.push(n[1]);
-  }
-  return out;
-}
+export { parseChangelogMd } from '../../src/core/changelog.mjs';
 
 // html 源码里的内联数组 → 同样的结构
 export function parseChangelogInline(src) {

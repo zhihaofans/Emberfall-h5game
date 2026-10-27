@@ -44,9 +44,12 @@ import {
   dayProgress, craftProgress, upgradeProgress, skillProgress, weaponProgress,
   bossProgress, pharaohProgress, doraProgress, achievementProgress,
 } from './core/progress.mjs';
+import { CHANGELOG } from './core/data/changelog.mjs';
+import { VERSION_RULES, changelogStats } from './core/changelog.mjs';
 
 // 版本号由构建注入（唯一源：仓库根 version.json）
 const APP_VERSION = __APP_VERSION__;
+const APP_BUILD = __APP_BUILD__;
 
 const SAVE_KEY = 'ember_save_v1';
 const NAMES = resNames();
@@ -920,6 +923,7 @@ function openMenu() {
     <button class="mbtn" data-menu="skills">🏅 技能一览</button>
     <button class="mbtn" data-menu="progress">📈 进度总览</button>
     <button class="mbtn" data-menu="wiki">📖 百科图鉴</button>
+    <button class="mbtn" data-menu="changelog">📜 更新日志</button>
     <button class="mbtn" data-menu="export">📤 导出存档</button>
     <button class="mbtn" data-menu="import">📥 导入存档</button>
     <button class="mbtn" data-menu="save">💾 手动保存</button>
@@ -934,6 +938,7 @@ function handleMenu(act) {
   if (act === 'skills') return renderSkills();
   if (act === 'progress') return renderProgress();
   if (act === 'wiki') return openWiki();
+  if (act === 'changelog') return renderChangelog();
   if (act === 'export') return openExport();
   if (act === 'import') return openImport();
   if (act === 'save') { save(); closeModal(); toast('已保存'); return; }
@@ -1120,6 +1125,36 @@ function renderProgress() {
     <h3>📈 进度总览</h3>
     <div class="msub">第 ${G.day} 天 · 看看离大事件还差多远</div>
     ${parts.join('')}
+    <button class="mbtn" data-close="1">关闭</button>`);
+}
+
+/* ---------------- 更新日志 ---------------- */
+
+/** 更新日志：版本规则 + 全量历史（数据直接来自仓库根 CHANGELOG.md，没有第二份） */
+function renderChangelog() {
+  const st = changelogStats(CHANGELOG);
+  const rules = VERSION_RULES
+    .map((r) => `· <b>${r[0]}</b>：${r[1]} → <span style="color:var(--accent)">${r[2]}</span>`)
+    .join('<br>');
+
+  const rows = CHANGELOG.map((c) => `
+    <div class="skillrow">
+      <div style="display:flex;justify-content:space-between"><b>v${c.ver}</b><span style="color:var(--txt-faint)">${c.date}</span></div>
+      ${c.title ? `<div style="font-size:13px;font-weight:700;color:var(--yellow);margin-top:4px">${c.title}</div>` : ''}
+      <ul style="margin:6px 0 0 18px;font-size:12px;color:var(--txt-dim);line-height:1.75;padding:0">${c.notes.map((n) => `<li>${n}</li>`).join('')}</ul>
+    </div>`).join('');
+
+  setModal(`
+    <h3>📜 更新日志</h3>
+    <div class="msub">共 ${st.versions} 个版本 / ${st.notes} 条更新</div>
+    <div class="skillrow" style="border-color:var(--accent2)">
+      <div style="display:flex;justify-content:space-between"><b>📏 版本规则（SemVer）</b><span style="color:var(--txt-faint)">当前 v${APP_VERSION} (build ${APP_BUILD})</span></div>
+      <div style="font-size:11.5px;color:var(--txt-dim);line-height:1.7;margin-top:4px">
+        ${rules}
+        <br>· 参考：<span style="color:var(--txt-faint)">semver.org/lang/zh-CN</span>
+      </div>
+    </div>
+    ${rows}
     <button class="mbtn" data-close="1">关闭</button>`);
 }
 

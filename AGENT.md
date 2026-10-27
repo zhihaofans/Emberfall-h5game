@@ -62,7 +62,7 @@
 |---|---|---|
 | 版本号 `ver` | `version.json` | `survival.html` 的 `GAME_VERSION` |
 | 构建号 `build` | `version.json`（`tools/stamp.mjs` 写入） | `survival.html` 的 `BUILD_CODE`、`sw.js` 的 `BUILD` |
-| 更新日志 | `CHANGELOG.md` | `survival.html` 的 `CHANGELOG` 数组 |
+| 更新日志 | `CHANGELOG.md` | `survival.html` 的 `CHANGELOG` 数组（`tools/sync-meta.mjs` 生成）；新架构 `src/core/data/changelog.mjs` 用 Vite `?raw` **直接引原文**，不另存副本 |
 | 图标 / 启动图清单 | `icons/`、`splash/` 目录 | `manifest.json` 的 `icons[]`、`survival.html` 的 `<link rel=…>` |
 | SW 预缓存清单 | 构建产物目录 | `sw.js` 的 `ASSETS` |
 | 依赖源地址 | 官方 `registry.npmjs.org` | `package-lock.json` 的 `resolved`（**禁止提交镜像地址**，否则 GitHub Actions 装包会慢/失败） |

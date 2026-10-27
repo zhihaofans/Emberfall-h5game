@@ -4,8 +4,9 @@
 //   core/**  纯逻辑，不碰 DOM
 //   app.mjs  状态容器 + 渲染 + 事件（本文件）
 //
-// 已经接上的 core：存档、时间/生存、13 个行动（含自动循环）、资源显示。
-// 还没接：制作面板、背包、事件弹窗、图鉴、PWA（后续按 P2 逐块补）。
+// 已经接上的 core：存档、时间/生存、13 个行动（含自动循环）、制作/装备/强化/附魔、
+// 探索与事件、战斗、图鉴、黑市商店、导入导出。
+// 还没接：技能一览、进度总览、更新日志、扫码导入导出、PWA（后续按 P2 逐块补）。
 
 import { createNewState, parseSavePayload, serialize } from './core/save.mjs';
 import { ACTIONS } from './core/data/actions.mjs';
@@ -36,6 +37,8 @@ import { checkMilestone, checkStageAchieve, checkArmorSet } from './core/achieve
 import { pickMerchantGoods, canTrade, buyMerchant, doraInfo, doraGoods, DORA_GIFTS, canGift, giftDora, canBuyDoraGood, buyDoraGood, addDoraFav } from './core/npc.mjs';
 import { markEncounter, wikiProgress } from './core/wiki.mjs';
 import { monsterEntries, materialEntries } from './core/bestiary.mjs';
+import { SHOP, SHOP_GROUPS } from './core/data/shop.mjs';
+import { shopItem, buyShopItem, canBuyShop, canBuyAnyShop } from './core/shop.mjs';
 
 // 版本号由构建注入（唯一源：仓库根 version.json）
 const APP_VERSION = __APP_VERSION__;
@@ -908,6 +911,7 @@ function openMenu() {
   setModal(`
     <h3>☰ 菜单</h3>
     <div class="msub">末日余烬 v${APP_VERSION} · 第 ${G.day} 天 · ${state}</div>
+    <button class="mbtn" data-menu="shop">🏪 黑市商店（💰${G.gold}）</button>
     <button class="mbtn" data-menu="wiki">📖 百科图鉴</button>
     <button class="mbtn" data-menu="export">📤 导出存档</button>
     <button class="mbtn" data-menu="import">📥 导入存档</button>
@@ -919,6 +923,7 @@ function openMenu() {
 
 /** @param {string} act */
 function handleMenu(act) {
+  if (act === 'shop') return renderShop();
   if (act === 'wiki') return openWiki();
   if (act === 'export') return openExport();
   if (act === 'import') return openImport();
@@ -929,6 +934,64 @@ function handleMenu(act) {
   if (act === 'clear') {
     return confirmModal('🗑 清除本地存档', '本地存档会被删除，游戏回到第 1 天。', '确定清除', clearSaveAndRestart);
   }
+}
+
+/* ---------------- 黑市商店 ---------------- */
+
+/** 黑市商店：两组商品 + 当前金币。买不起的置灰（与旧版一致，不隐藏） */
+function renderShop() {
+  const groups = SHOP_GROUPS.map((g) => {
+    const rows = g.ids.map(shopRowHtml).join('');
+    return `<div class="craft-sep">${g.title}</div>${rows}`;
+  }).join('');
+
+  setModal(`
+    <h3>🏪 黑市商店</h3>
+    <div class="msub">当前金币：<b id="shopGold" style="color:var(--yellow)">💰${G.gold}</b> · 金币购物随时可用</div>
+    ${groups}
+    <button class="mbtn" data-close="1">关闭</button>`);
+}
+
+/** 单件商品按钮：名字 + 价格（买得起黄色，买不起灰色且 disabled）
+ * @param {string} id */
+function shopRowHtml(id) {
+  const it = shopItem(id);
+  if (!it) return '';
+  const ok = canBuyShop(G, id).ok;
+  const dis = ok ? '' : ' disabled style="opacity:.45"';
+  return `<button class="mbtn" id="shopBtn_${id}" data-shop="${id}"${dis}>`
+    + '<span style="display:flex;justify-content:space-between;align-items:center">'
+    + `<span>${it.name}</span>`
+    + `<span class="shop-price" style="color:${ok ? 'var(--yellow)' : 'var(--txt-faint)'}">${it.cost} 💰</span>`
+    + '</span></button>';
+}
+
+/** 买完后原地刷新金币与全部按钮态：不重建弹窗，保住滚动位置（旧版行为） */
+function refreshShop() {
+  const gold = el('shopGold');
+  if (gold) gold.textContent = '💰' + G.gold;
+  for (const id of Object.keys(SHOP)) {
+    const b = /** @type {HTMLButtonElement|null} */ (document.getElementById('shopBtn_' + id));
+    if (!b) continue;
+    const ok = canBuyShop(G, id).ok;
+    b.disabled = !ok;
+    b.style.opacity = ok ? '' : '.45';
+    const price = /** @type {HTMLElement|null} */ (b.querySelector('.shop-price'));
+    if (price) price.style.color = ok ? 'var(--yellow)' : 'var(--txt-faint)';
+  }
+}
+
+/** 买一件
+ * @param {string} id */
+function buyShop(id) {
+  const r = buyShopItem(G, id);
+  if (r.refused) { toast(r.refused); return; }
+
+  for (const l of r.logs) log(l.text, l.cls);
+  renderAll();
+  save();
+  refreshShop();
+  if (!canBuyAnyShop(G)) toast('金币已不足以再购买');
 }
 
 /* ---------------- 百科图鉴 ---------------- */
@@ -1213,6 +1276,12 @@ export function boot() {
 
     const menuBtn = closestEl(e.target, '[data-menu]');
     if (menuBtn) { handleMenu(String(menuBtn.dataset.menu)); return; }
+
+    const shopBtn = closestEl(e.target, '[data-shop]');
+    if (shopBtn) {
+      if (!/** @type {HTMLButtonElement} */ (shopBtn).disabled) buyShop(String(shopBtn.dataset.shop));
+      return;
+    }
 
     const wtab = closestEl(e.target, '[data-wiki-tab]');
     if (wtab) { curWikiTab = String(wtab.dataset.wikiTab); renderWiki(); return; }

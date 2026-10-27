@@ -26,3 +26,13 @@ export const SHOP = {
   lucky1: { name: '🎰抽奖券 ×1（试试手气）', cost: 800, effects: [{ op: 'res', res: 'luckyDraw', n: 1 }] },
   lucky5: { name: '🎰🎰抽奖券 ×5（批量更划算）', cost: 3500, effects: [{ op: 'res', res: 'luckyDraw', n: 5 }] },
 };
+
+// 商店分组：只决定「渲染顺序与分区标题」，商品本体仍在 SHOP 里。
+// 顺序与旧文件 openShop() 的两串数组逐一对应（对拍见 tests/unit/shop.test.mjs）。
+export const SHOP_GROUPS = [
+  { title: '⚒ 基础物资', ids: ['herb', 'metal', 'leather', 'med', 'luck'] },
+  {
+    title: '💎 高级道具',
+    ids: ['rune', 'alloy', 'goldIngot', 'lifePotion', 'expPotion', 'totem', 'adren', 'lucky1', 'lucky5'],
+  },
+];

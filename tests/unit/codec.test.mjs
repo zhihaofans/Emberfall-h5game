@@ -100,6 +100,25 @@ test('裸 JSON：兼容早期新架构导出与前后夹带说明的文本', () 
   assert.equal(parsed2.state.day, 42);
 });
 
+test('容错：BOM / 前缀前带说明 / base64 折行 / URL-safe 变体', () => {
+  const s = sampleState();
+  const code = exportCode(s, VER);
+
+  // Windows 记事本另存的 UTF-8 BOM
+  assert.equal(parseSaveCode('\uFEFF' + code).state.gold, 777);
+
+  // 复制时带了说明文字
+  assert.equal(parseSaveCode('我的存档，粘进来就行：' + code).state.gold, 777);
+
+  // base64 每 76 列折行（邮件/编辑器常见）
+  const body = code.slice(CODE_TAG.length + 1);
+  assert.equal(parseSaveCode(CODE_TAG + ':' + body.replace(/(.{76})/g, '$1\n')).state.gold, 777);
+
+  // URL-safe base64（- _ 代替 + /）
+  const urlSafe = CODE_TAG + ':' + body.replace(/\+/g, '-').replace(/\//g, '_');
+  assert.equal(parseSaveCode(urlSafe).state.gold, 777);
+});
+
 test('坏数据一律返回 null，不抛错', () => {
   for (const bad of ['', '   ', 'hello', 'EMBER:', 'EMBER:!!!', 'EMQR1:!!!', '{"a":1}', '{}', null, undefined]) {
     assert.equal(parseSaveCode(bad), null, `应拒绝：${String(bad)}`);

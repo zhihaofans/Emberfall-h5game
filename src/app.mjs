@@ -1303,8 +1303,15 @@ function adoptSave(state, isOld, how) {
 
 function doImport() {
   const ta = /** @type {HTMLTextAreaElement|null} */ (el('importArea'));
-  const parsed = parseSaveCode(ta ? ta.value : '');
-  if (!parsed) { toast('导入失败：存档代码无效'); return; }
+  const raw = ta ? ta.value : '';
+  const parsed = parseSaveCode(raw);
+  if (!parsed) {
+    // 诊断信息写进日志（只露开头 12 个字符，便于判断是格式不对还是内容损坏）
+    const head = raw.trim().slice(0, 12);
+    log(`导入失败：无法识别（长度 ${raw.trim().length}，开头「${head}」）`, 'warn');
+    toast('导入失败：应为 EMBER: / EMBER1: / EMQR1: 开头的存档码，或存档 JSON');
+    return;
+  }
   adoptSave(parsed.state, parsed.isOld, '存档导入');
 }
 
@@ -1316,7 +1323,7 @@ async function scanImport() {
     startScanner({
       onText: (text) => {
         const parsed = parseSaveCode(text);
-        if (!parsed) { toast('扫到的内容不是有效存档'); return; }
+        if (!parsed) { toast('扫到的内容不是有效存档（应为 EMBER: / EMQR1: 开头）'); return; }
         adoptSave(parsed.state, parsed.isOld, '扫码导入');
       },
       onError: (msg) => toast(msg),

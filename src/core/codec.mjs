@@ -29,7 +29,10 @@ function toB64(s) {
  * @param {string} s
  */
 function fromB64(s) {
-  return decodeURIComponent(escape(atob(s)));
+  // 容错：去掉折行/空格；兼容 URL-safe 变体（- _）；补齐 base64 padding
+  let b = String(s).replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+  while (b.length % 4) b += '=';
+  return decodeURIComponent(escape(atob(b)));
 }
 
 /**
@@ -59,7 +62,8 @@ export function exportQrCode(state, ver) {
  * @returns {{state: GameState, isOld: boolean} | null}
  */
 export function parseSaveCode(text, now = Date.now()) {
-  const code = String(text ?? '').trim();
+  // 容错：BOM（Windows 记事本另存会出现）、首尾空白
+  const code = String(text ?? '').replace(/^\uFEFF/, '').trim();
   if (!code) return null;
 
   /** @param {any} data @param {boolean} legacy */
@@ -70,24 +74,35 @@ export function parseSaveCode(text, now = Date.now()) {
     return { state, isOld: legacy || fmt < SAVE_FMT };
   };
 
+  // 允许前缀前面带说明文字（「我的存档：EMBER:xxx」），取最先出现的已知前缀
+  const tags = [
+    { tag: QR_TAG, kind: 'qr' },
+    { tag: LEGACY_TAG, kind: 'legacy' },
+    { tag: CODE_TAG, kind: 'code' },
+  ];
+  /** @type {{tag: string, kind: string, at: number}|null} */
+  let hit = null;
+  for (const t of tags) {
+    const at = code.indexOf(t.tag + ':');
+    if (at >= 0 && (!hit || at < hit.at)) hit = { ...t, at };
+  }
+
+  if (hit) {
+    try {
+      const body = code.slice(hit.at + hit.tag.length + 1);
+      if (hit.kind === 'qr') {
+        const json = LZString.decompressFromBase64(body.replace(/\s+/g, ''));
+        if (json) return finish(JSON.parse(json), false);
+      } else {
+        return finish(JSON.parse(fromB64(body)), hit.kind === 'legacy');
+      }
+    } catch {
+      // 前缀在但内容解不开：继续尝试按裸 JSON 解析（可能是 PEM 式的混合文本）
+    }
+  }
+
+  // 裸 JSON：容忍前后夹带的说明文字（取第一个 { 到最后一个 }）
   try {
-    if (code.startsWith(QR_TAG + ':')) {
-      const json = LZString.decompressFromBase64(code.slice(QR_TAG.length + 1));
-      if (!json) return null;
-      return finish(JSON.parse(json), false);
-    }
-
-    let body = null;
-    let legacy = false;
-    if (code.startsWith(CODE_TAG + ':')) {
-      body = code.slice(CODE_TAG.length + 1);
-    } else if (code.startsWith(LEGACY_TAG + ':')) {
-      body = code.slice(LEGACY_TAG.length + 1);
-      legacy = true;
-    }
-    if (body !== null) return finish(JSON.parse(fromB64(body.trim())), legacy);
-
-    // 裸 JSON：容忍前后夹带的说明文字（取第一个 { 到最后一个 }）
     const start = code.indexOf('{');
     const end = code.lastIndexOf('}');
     if (start < 0 || end <= start) return null;

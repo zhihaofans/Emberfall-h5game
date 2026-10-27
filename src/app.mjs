@@ -46,6 +46,7 @@ import {
 } from './core/progress.mjs';
 import { CHANGELOG } from './core/data/changelog.mjs';
 import { VERSION_RULES, changelogStats } from './core/changelog.mjs';
+import { canInstallNow, install as pwaInstall } from './pwa.mjs';
 
 // 版本号由构建注入（唯一源：仓库根 version.json）
 const APP_VERSION = __APP_VERSION__;
@@ -123,7 +124,7 @@ export function log(text, cls = 'sys') {
 let toastTimer;
 
 /** @param {string} msg */
-function toast(msg) {
+export function toast(msg) {
   const t = el('toast');
   t.textContent = msg;
   t.classList.add('show');
@@ -924,6 +925,7 @@ function openMenu() {
     <button class="mbtn" data-menu="progress">📈 进度总览</button>
     <button class="mbtn" data-menu="wiki">📖 百科图鉴</button>
     <button class="mbtn" data-menu="changelog">📜 更新日志</button>
+    ${canInstallNow() ? '<button class="mbtn" data-menu="install">📲 安装到桌面（可离线全屏玩）</button>' : ''}
     <button class="mbtn" data-menu="export">📤 导出存档</button>
     <button class="mbtn" data-menu="import">📥 导入存档</button>
     <button class="mbtn" data-menu="save">💾 手动保存</button>
@@ -939,6 +941,7 @@ function handleMenu(act) {
   if (act === 'progress') return renderProgress();
   if (act === 'wiki') return openWiki();
   if (act === 'changelog') return renderChangelog();
+  if (act === 'install') { closeModal(); pwaInstall(); return; }
   if (act === 'export') return openExport();
   if (act === 'import') return openImport();
   if (act === 'save') { save(); closeModal(); toast('已保存'); return; }

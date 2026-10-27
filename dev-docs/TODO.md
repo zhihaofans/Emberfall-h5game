@@ -238,8 +238,8 @@ import { checkArmorSet } from './core/achievements.mjs';
 **配套 SSOT 改动**：战斗里兽王的固定掉落 `luck×1 / rune×1` 原本硬编码在 `fightBoss()` 的结算与日志里，
 现在抽成 `combat.BOSS_EXTRA_DROPS`，结算、日志、图鉴三处共用；对拍测试逐字通过，行为未变。
 
-**还没做（下一步）**：扫码导入导出（原版内联 QR 生成 + jsQR，属独立一块）、安装入口（依赖 PWA 层 §4.5）。
-（黑市商店见 §4.1.4；技能一览见 §4.1.5；进度总览见 §4.1.6；更新日志见 §4.1.7。）
+**还没做（下一步）**：扫码导入导出（原版内联 QR 生成 + jsQR，属独立一块）。
+（黑市商店见 §4.1.4；技能一览见 §4.1.5；进度总览见 §4.1.6；更新日志见 §4.1.7；安装入口随 §4.5 一起做完了。）
 
 **验证**：单测 166 全绿（新增 4 条：条目 id 与 `BESTIARY_IDS` 同序 / 解锁联动 / 数值来自战斗数据 / 材料条目数）、
 `tsc` 0 错误、构建 20 文件 / 1292.7 KB、无头 DOM 冒烟 67 项通过（含菜单开合、图鉴分页与打码、导出文本、
@@ -315,9 +315,26 @@ import { checkArmorSet } from './core/achievements.mjs';
 | 4.2 | `ui/dom.ts` 小部件 | 复用现有 `toast / log / modal` 形态，不另造一套 | 可视化回归截图（窄屏 390×844 与桌面各一张） |
 | 4.3 | 事件绑定集中化 | 替掉 HTML 内联 `onclick="fn()"`（当前有大量全局函数被内联引用） | 产物里 `onclick=` 出现次数 = 0；键盘/触控均可用 |
 | 4.4 | `dev/guard.ts` | 6100–6300 防崩溃（EBH 哨兵 + HTML 备份） | 故意让启动抛错，能出降级页并可一键恢复 |
-| 4.5 | `src/pwa.ts` | 6299–6436 PWA 层：注册条件、更新提示三源、离线标识 | SW 只在安全上下文注册；`https` 下首次安装不误报"已更新"；断网重载界面+存档正常 |
+| 4.5 | `src/pwa.ts`（实际落地为 `src/pwa.mjs`） | ✅ **已完成（2026-10-27）**：注册条件 / 更新提示三源 / 离线标识 / 安装引导 / 持久化存储；菜单加「📲 安装到桌面」入口；`src/index.html` 补齐 manifest 与 iOS 图标/启动图标签 | SW 只在安全上下文注册；`https` 下首次安装不误报"已更新"；断网重载界面+存档正常 |
 
 - **成本**：中。**风险**：渲染层最容易在拆分时引入"少更新一次"的 bug —— 建议先建立 `renderAll()` 的调用点清单，再动手。
+
+### 4.5.1 PWA 层实施记录（✅ 2026-10-27）
+
+| 做了什么 | 位置 |
+|---|---|
+| PWA 能力整套搬过来：SW 注册条件、`updatefound` / `controllerchange` / 切前台比对 `version.json` 三个更新提示源、离线/在线提示条、`beforeinstallprompt` 与 iOS「添加到主屏幕」引导、`storage.persist()` | `src/pwa.mjs` |
+| 纯判断抽成可测函数：`isStandalone` / `isIOS` / `canInstall`（默认参数取 `globalThis`，单测传假对象） | 同上 |
+| 启动顺序：`boot()` 之后 `bootPWA({ version: __APP_VERSION__, toast })`，**只依赖注入的 toast**，不 import `app.mjs` | `src/main.ts` |
+| 菜单「📲 安装到桌面（可离线全屏玩）」：仅在 `canInstallNow()` 为真时出现（已安装 / 桌面端还没拿到 prompt 时不显示） | `src/app.mjs` |
+| `src/index.html` 补齐 `<link rel="manifest">`、`apple-mobile-web-app-*`、`apple-touch-icon`、6 张启动图 —— 之前只迁了 `theme-color`，缺 manifest 会导致装不上 | `src/index.html` |
+
+**没改**：`sw.js`（`ASSETS` 仍由 `tools/build.mjs` 按 dist 产物生成）、`manifest.json`、旧 `survival.html` 的 PWA 段。
+
+**验证**：单测 **195** 全绿（+4：独立窗口判定、iOS/iPadOS 识别、安卓不误判、可安装三态）；
+`tsc` 0 错误；SSOT 12 项（dist 里 `BUILD=102`、`./assets/*.js|css` 都进了预缓存、6 张启动图引用可解析）；
+构建 20 文件 / 142 KB。
+**未验证**：真实 `https` 环境下的安装流程、SW 更新提示、断网重载（本地 Chromium 起不来 —— 本机只能验到「产物结构正确」）。
 
 ---
 

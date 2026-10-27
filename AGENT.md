@@ -445,6 +445,7 @@ weaponAtk()        = base.atk × (1 + 锋利等级×0.10)
 | `sw.js` | 预缓存 + cacheFirst + 清旧缓存 | 不要写死版本号（用 `BUILD` 常量由脚本注入）；**`ASSETS` 由 `tools/build.mjs` 按 `dist/` 产物生成，不要手改**；不要改回 networkFirst |
 | `version.json` | 版本比对数据源 | 由 `release.sh` 生成，不要手改 |
 | `survival.html` 末尾 `pwaBoot()` | 注册、安装引导、更新提示、离线标识 | 整段可注释掉而不影响游戏（保持解耦） |
+| `src/pwa.mjs` + `src/main.ts` | 新架构的同一套能力（§4.5 已搬） | 只依赖传入的 `toast` 回调，不 import `app.mjs`；摘掉 `bootPWA(...)` 一行即回到无 PWA 状态 |
 
 ### 6.2 缓存策略
 

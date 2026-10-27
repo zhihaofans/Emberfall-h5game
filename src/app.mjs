@@ -40,6 +40,10 @@ import { monsterEntries, materialEntries } from './core/bestiary.mjs';
 import { SHOP, SHOP_GROUPS } from './core/data/shop.mjs';
 import { shopItem, buyShopItem, canBuyShop, canBuyAnyShop } from './core/shop.mjs';
 import { skillRows } from './core/skills.mjs';
+import {
+  dayProgress, craftProgress, upgradeProgress, skillProgress, weaponProgress,
+  bossProgress, pharaohProgress, doraProgress, achievementProgress,
+} from './core/progress.mjs';
 
 // 版本号由构建注入（唯一源：仓库根 version.json）
 const APP_VERSION = __APP_VERSION__;
@@ -914,6 +918,7 @@ function openMenu() {
     <div class="msub">末日余烬 v${APP_VERSION} · 第 ${G.day} 天 · ${state}</div>
     <button class="mbtn" data-menu="shop">🏪 黑市商店（💰${G.gold}）</button>
     <button class="mbtn" data-menu="skills">🏅 技能一览</button>
+    <button class="mbtn" data-menu="progress">📈 进度总览</button>
     <button class="mbtn" data-menu="wiki">📖 百科图鉴</button>
     <button class="mbtn" data-menu="export">📤 导出存档</button>
     <button class="mbtn" data-menu="import">📥 导入存档</button>
@@ -927,6 +932,7 @@ function openMenu() {
 function handleMenu(act) {
   if (act === 'shop') return renderShop();
   if (act === 'skills') return renderSkills();
+  if (act === 'progress') return renderProgress();
   if (act === 'wiki') return openWiki();
   if (act === 'export') return openExport();
   if (act === 'import') return openImport();
@@ -1012,6 +1018,108 @@ function renderSkills() {
     <h3>🏅 技能</h3>
     <div class="msub">等级越高效率越高 · 行动会自动获得经验</div>
     ${rows}
+    <button class="mbtn" data-close="1">关闭</button>`);
+}
+
+/* ---------------- 进度总览 ---------------- */
+
+/** 进度条（结构同旧 pbar()：.pbar / .pfill / .pnum）
+ * @param {number} cur @param {number} max @param {number} p */
+function pbarHtml(cur, max, p) {
+  return `<div class="pbar"><div class="pfill" style="width:${p}%"></div></div>`
+    + `<div class="pnum">${Math.round(cur)}/${max}（${p}%）</div>`;
+}
+
+/** 进度总览：9 个区块，数值全部来自 core/progress.mjs，这里只拼文案 */
+function renderProgress() {
+  const d = dayProgress(G);
+  const c = craftProgress(G);
+  const u = upgradeProgress(G);
+  const sk = skillProgress(G);
+  const w = weaponProgress(G);
+  const b = bossProgress(G);
+  const ph = pharaohProgress(G);
+  const dr = doraProgress(G);
+  const ac = achievementProgress(G);
+
+  const dayNote = d.done
+    ? '🏆 已达成全部天数目标！'
+    : `⏭ 下一个大事件：生存 ${d.next} 天（还差 ${d.left} 天）`;
+  const craftNote = c.next
+    ? `⏭ 下一个：${c.nextName}（${c.missing}）`
+    : '🏆 全部设施制作完成！';
+  const upNote = u.perKey.map((k) => `${k.name.replace('强化', '')} ${k.lvl}/${k.max}`).join(' · ');
+  const skillNote = sk.rows.map((r) => `${r.name} Lv.${r.lvl}`).join(' · ');
+  const weaponChips = w.route
+    .map((r) => `<span class="wpn${r.owned ? ' owned' : ''}">${r.name}</span>`)
+    .join('<span class="warrow">→</span>');
+
+  const bossNotes = [
+    '⏭ 第 30 天起探索/夜间有概率遭遇，击败奖励 🍖×30 👜×12 🔩×8 🎲×1',
+    '✅ 首杀完成！兽王 45 天后以「狂暴」形态回归（HP 150+）',
+    '🏆 二次讨伐完成！「灭世」形态蓄势待发（HP 210+）',
+    '👑 兽王终结者：三形态尽数讨伐，废土再无对手！',
+  ];
+  const pharaohNotes = [
+    '⏭ 第 25 天起在 🏜金字塔 探索有概率遭遇（HP 220 atk 32），击败奖励 🍖×40 ⚙️×8 🔮×2 💰×120',
+    '✅ 首杀！法老 30 天后以「死亡执政官」回归（HP 320 atk 44）',
+    '🏆 二度讨伐！「永恒法老」终极形态蓄势待发（HP 420 atk 56）',
+    '👁 王者归来：三形态尽数讨伐，金字塔归于沉寂！',
+  ];
+  const doraNote = dr.max
+    ? '❤ 已是家人！它的万能口袋为你敞开。'
+    : `🔧 废墟探索有概率遇到，送礼提升好感 · 下一级「${dr.nextName}」还需 ${dr.nextNeed}`;
+
+  const achDone = ac.done.length
+    ? ac.done.map((a) => `<span class="ach on">✅ ${a.label}</span>`).join('')
+    : '<span class="ach">暂无达成成就，快去冒险吧！</span>';
+  const achLeft = ac.left.map((a) => `<span class="ach">⬜ ${a.label}</span>`).join('');
+
+  const parts = [
+    `<div class="prow"><div class="ptitle">🌄 生存天数 <span class="ptag">${d.cur}/${d.max} 天</span></div>`
+      + pbarHtml(d.cur, d.max, d.pct)
+      + `<div class="pnote">${dayNote}</div></div>`,
+
+    `<div class="prow"><div class="ptitle">⚒️ 制作进度 <span class="ptag">${c.made}/${c.total}</span></div>`
+      + pbarHtml(c.made, c.total, c.pct)
+      + `<div class="pnote">${craftNote}</div></div>`,
+
+    `<div class="prow"><div class="ptitle">⬆️ 强化进度 <span class="ptag">${u.total}/${u.max}</span></div>`
+      + pbarHtml(u.total, u.max, u.pct)
+      + `<div class="pnote">${upNote}</div></div>`,
+
+    `<div class="prow"><div class="ptitle">🏅 技能等级 <span class="ptag">${sk.total}/${sk.max}</span></div>`
+      + pbarHtml(sk.total, sk.max, sk.pct)
+      + `<div class="pnote">${skillNote}</div></div>`,
+
+    `<div class="prow"><div class="ptitle">🗡️ 武器路线 <span class="ptag">${w.current.name}</span></div>`
+      + `<div class="wpnrow">${weaponChips}</div></div>`,
+
+    `<div class="prow"><div class="ptitle">👹 废土兽王 <span class="ptag">${b.kills ? '已击败 ' + b.kills + ' 次' : '未击败'}</span></div>`
+      + `<div class="pnote">${bossNotes[b.stage]}</div></div>`,
+
+    `<div class="prow"><div class="ptitle">🏜 法老王 <span class="ptag">${ph.kills ? '已击败 ' + ph.kills + ' 次' : '未击败'}</span></div>`
+      + `<div class="pnote">${pharaohNotes[ph.stage]}</div></div>`,
+
+    `<div class="prow"><div class="ptitle">🤖 猫耳机器人 <span class="ptag">${dr.name}（${dr.fav}）</span></div>`
+      + `<div class="pnote">${doraNote}</div></div>`,
+
+    `<div class="prow"><div class="ptitle">🏆 成就 <span class="ptag">${ac.doneCount}/${ac.total}</span></div>`
+      + pbarHtml(ac.doneCount, ac.total, ac.pct)
+      + `<div class="pnote" style="display:flex;align-items:center;gap:8px">✅ 已达成 <b>${ac.doneCount}</b> 个 · `
+      + (ac.left.length
+        ? `<span style="cursor:pointer;color:var(--accent)" data-ach-toggle="1">查看剩余 ${ac.left.length} 个未解锁 ▾</span>`
+        : '🎉 全部达成！')
+      + '</div>'
+      + `<div class="achlist">${achDone}</div>`
+      + (ac.left.length ? `<div id="leftAchList" class="achlist" style="display:none">${achLeft}</div>` : '')
+      + '</div>',
+  ];
+
+  setModal(`
+    <h3>📈 进度总览</h3>
+    <div class="msub">第 ${G.day} 天 · 看看离大事件还差多远</div>
+    ${parts.join('')}
     <button class="mbtn" data-close="1">关闭</button>`);
 }
 
@@ -1301,6 +1409,12 @@ export function boot() {
     const shopBtn = closestEl(e.target, '[data-shop]');
     if (shopBtn) {
       if (!/** @type {HTMLButtonElement} */ (shopBtn).disabled) buyShop(String(shopBtn.dataset.shop));
+      return;
+    }
+
+    if (closestEl(e.target, '[data-ach-toggle]')) {
+      const list = document.getElementById('leftAchList');
+      if (list) list.style.display = list.style.display === 'none' ? 'flex' : 'none';
       return;
     }
 

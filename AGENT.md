@@ -43,7 +43,7 @@
 
 **版本策略现状（2026-10-25 定）**：下一个 MAJOR 是 **3.0.0**（架构重构：TS 分层 + 构建链 + 发布链路全换）；`BUILD_CODE` 从 103 继续递增，不跳到 300，也不随 MAJOR 重置。历史执行统计：1.0.0（2026-08-09）→ 1.30.2（08-11），MINOR 最高 30、单 MINOR 内 PATCH 最多 9 个；MAJOR 只用过 2.0.0（PWA 化）。
 
-发布时 `release.sh` 会把 `BUILD_CODE` 注入 `sw.js` 的 `BUILD` 常量并生成 `version.json`，三处不一致会直接中止发布。
+版本号操作统一走 `node tools/stamp.mjs`（只改 `version.json`，再由 `tools/sync-meta.mjs` 生成 `GAME_VERSION` / `BUILD_CODE` / `sw.js` 的 `BUILD`），写完回读三处，不一致直接中止；`node tools/release.mjs` 负责校验 → 构建 → 打包，不再自动 commit/tag（§8.2）。
 
 ### 0.4 不许破坏的两件事
 
@@ -552,18 +552,26 @@ const ok=(c,n)=>{ c?(pass++,console.log('✅ '+n)):(fail++,console.log('❌ '+n)
   - `page.evaluate` 里可直接调用页面全局函数（`newGame()`、`lostOpts()` 等）
 - 每次改动至少跑：`version.js`（版本/存档兼容）+ 与该功能对应的专项 + `layout.js`（布局）
 
-### 8.2 发布流程（`release.sh`）
+### 8.2 发布流程（`tools/release.mjs`）
 
 ```
-0. 跑 `node tools/check-ssot.mjs`（单一数据源校验，只读；不一致即中止，见 §0.5）
-1. 跑 `node tests/run-e2e.mjs`（统一入口；有失败 / 有文件跑不起来 / 0 断言 → 一律中止）
-2. 提取 GAME_VERSION / BUILD_CODE
-3. 把 BUILD 注入 sw.js，重写 version.json，回读校验三处一致
-4. git commit "v<ver> · <说明>"
-5. git tag -a v<ver>
-6. 打包 末日余烬-<ver>.zip（只含运行时文件：html / manifest / sw / version / icons / splash / screenshots）
-7. 包内版本一致性核对 + find -newer 检查包是否过期
+# 0. 改代码 → 全绿（版本号先不动）
+# 1. 一次性 bump：只改唯一源，html / sw 由 sync-meta 生成
+node tools/stamp.mjs --bump patch --note "修了 xx"
+# 2. 流水线：SSOT → tsc → 单测 →（--e2e 可选）→ 构建 → 打包
+node tools/release.mjs
+# 3. 人确认后执行（脚本不再替你 commit/tag）
+git add -A && git commit -m "v<ver> · <说明>"
+git tag -a v<ver> -m "v<ver> · <说明>"
+git push origin master --tags     # CI 全绿 → Deploy workflow 发 Pages
 ```
+
+- `stamp`：`--bump major|minor|patch` / `--set X.Y.Z` / `--build N` / `--note` / `--check`；
+  写完回读三处（`version.json` / `GAME_VERSION` / `sw.js BUILD`），不一致直接失败。
+- `release`：`release.sh` 只剩一层兼容包装；旧版里的 `git add -A / commit / tag` 已移除。
+- 产物：`dist/`（多文件 PWA）+ `末日余烬-<ver>.zip`（只含运行时文件，包内版本回读校验 + 新鲜度检查）。
+- 版本号旁显示 git hash：构建期注入 `__APP_COMMIT__`（`tools/lib/git.mjs`，脏工作区带 `-dirty`），
+  `dist/version.json` 同时写入 `sha`；游戏内文案统一走 `core/version.mjs` 的 `versionLabel()`。
 
 **发布后必须做线上冒烟**（不是看 HTTP 200）：
 

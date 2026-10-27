@@ -16,6 +16,8 @@ npm run build     # 构建 dist/（多文件 PWA 产物，含 SW 预缓存清单
 npm run preview   # 预览 dist/（localhost 下 SW 与摄像头都可用）
 npm run verify    # SSOT 校验 + tsc --noEmit + 单测（不需要浏览器）
 npm run e2e       # 真浏览器 e2e（需要 Chromium；本地起不来就交给 CI）
+npm run stamp -- --bump patch --note "说明"   # 改版本号（唯一源 version.json，自动同步三处）
+npm run release   # SSOT + 类型 + 单测 + 构建 + 打包（不做 git commit/tag）
 ```
 
 版本号唯一源是 `version.json`：改代码时不动版本号，发版时统一 bump（规则见 `AGENT.md` §0.3）。

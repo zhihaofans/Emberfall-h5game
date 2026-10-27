@@ -46,12 +46,15 @@ import {
 } from './core/progress.mjs';
 import { CHANGELOG } from './core/data/changelog.mjs';
 import { VERSION_RULES, changelogStats } from './core/changelog.mjs';
+import { versionLabel } from './core/version.mjs';
 import { canInstallNow, install as pwaInstall } from './pwa.mjs';
 import { exportCode, exportQrCode, parseSaveCode } from './core/codec.mjs';
 
-// 版本号由构建注入（唯一源：仓库根 version.json）
+// 版本号由构建注入（唯一源：仓库根 version.json）；git hash 同样构建期注入
 const APP_VERSION = __APP_VERSION__;
 const APP_BUILD = __APP_BUILD__;
+const APP_COMMIT = __APP_COMMIT__;
+const APP_LABEL = versionLabel(APP_VERSION, APP_BUILD, APP_COMMIT);
 
 const SAVE_KEY = 'ember_save_v1';
 const NAMES = resNames();
@@ -920,7 +923,7 @@ function openMenu() {
   const state = G.dead ? '已死亡' : '生存中';
   setModal(`
     <h3>☰ 菜单</h3>
-    <div class="msub">末日余烬 v${APP_VERSION} · 第 ${G.day} 天 · ${state}</div>
+    <div class="msub">末日余烬 ${APP_LABEL} · 第 ${G.day} 天 · ${state}</div>
     <button class="mbtn" data-menu="shop">🏪 黑市商店（💰${G.gold}）</button>
     <button class="mbtn" data-menu="skills">🏅 技能一览</button>
     <button class="mbtn" data-menu="progress">📈 进度总览</button>
@@ -1152,7 +1155,7 @@ function renderChangelog() {
     <h3>📜 更新日志</h3>
     <div class="msub">共 ${st.versions} 个版本 / ${st.notes} 条更新</div>
     <div class="skillrow" style="border-color:var(--accent2)">
-      <div style="display:flex;justify-content:space-between"><b>📏 版本规则（SemVer）</b><span style="color:var(--txt-faint)">当前 v${APP_VERSION} (build ${APP_BUILD})</span></div>
+      <div style="display:flex;justify-content:space-between"><b>📏 版本规则（SemVer）</b><span style="color:var(--txt-faint)">当前 ${APP_LABEL}</span></div>
       <div style="font-size:11.5px;color:var(--txt-dim);line-height:1.7;margin-top:4px">
         ${rules}
         <br>· 参考：<span style="color:var(--txt-faint)">semver.org/lang/zh-CN</span>
@@ -1328,7 +1331,7 @@ async function scanImport() {
 function startNewGame() {
   G = createNewState();
   logBuffer.length = 0;
-  log(`末日余烬 v${APP_VERSION} · 新的一世`, 'info');
+  log(`末日余烬 ${APP_LABEL} · 新的一世`, 'info');
   log('点击下方按钮开始行动；可以长按「自动」类行动进入放置模式。', 'sys');
   closeModal();
   renderAll();
@@ -1363,7 +1366,7 @@ export function boot() {
   G = loadSave() || createNewState();
 
   logBuffer.length = 0;
-  log(`末日余烬 v${APP_VERSION} · 文字生存冒险`, 'info');
+  log(`末日余烬 ${APP_LABEL} · 文字生存冒险`, 'info');
   log('点击下方按钮开始行动；可以长按「自动」类行动进入放置模式。', 'sys');
 
   el('actions')?.addEventListener('click', (e) => {

@@ -375,13 +375,26 @@ import { checkArmorSet } from './core/achievements.mjs';
 |---|---|---|
 | 5.0 | **生成器接管（SSOT 落地）** —— ✅ 已完成（2026-10-25）：`tools/sync-meta.mjs` 从 `version.json` + `CHANGELOG.md` 生成 html 的 `GAME_VERSION`/`BUILD_CODE`/`CHANGELOG` 与 `sw.js` 的 `BUILD`；`--check` / `--dry-run` 两种只读模式 | 幂等基线与现有源码逐字节一致；副本里改源 → check 红 → sync → check 绿 → 复跑 0 改动 |
 | 5.1 | `tools/build.mjs`：清产物 → vite build → 注入 SW 预缓存清单 | 产物版本号与 `sw.js` 的 `BUILD` 一致；重复构建字节稳定 |
-| 5.2 | `tools/stamp.mjs`：`--bump/--set/--build`，写版本唯一源并回读校验；同时从 `CHANGELOG.md` 生成游戏内 `CHANGELOG` 数组 | 三处（html / sw / version.json）不一致时直接失败；`CHANGELOG.md` 与内联数组逐条一致 |
-| 5.3 | `tools/package.mjs`：只打运行时文件 zip | 包内版本一致性核对 + `find -newer` 防过期 |
-| 5.4 | 替换 `release.sh` | 发布不再由 bash 里 `git add -A` 完成；commit/tag 仍由你执行 |
+| 5.2 | `tools/stamp.mjs`：`--bump/--set/--build`，写版本唯一源并回读校验；同时从 `CHANGELOG.md` 生成游戏内 `CHANGELOG` 数组 —— ✅ **已完成（2026-10-27）**：`--bump major\|minor\|patch` / `--set` / `--build` / `--note` / `--check`，只写 `version.json`，随后调 `sync-meta` 生成三处并回读 | 三处（html / sw / version.json）不一致时直接失败；`CHANGELOG.md` 与内联数组逐条一致（`check-ssot` 在管） |
+| 5.3 | `tools/package.mjs`：只打运行时文件 zip —— ✅ **已完成（2026-10-27）**：系统 `zip` 打 `dist/`，包内回读 `version.json` / `sw.js` 的 `BUILD`，并按产物 mtime 判新鲜度 | 包内版本一致性核对 + 防过期 |
+| 5.4 | 替换 `release.sh` —— ✅ **已完成（2026-10-27）**：`tools/release.mjs` 负责 SSOT → tsc → 单测 →（可选 e2e）→ 构建 → 打包；`release.sh` 退化成一层包装 | 发布不再由 bash 里 `git add -A` 完成；commit/tag 由你执行 |
 | 5.5 | CI（GitHub Actions） | typecheck → 单测 → build → e2e → deploy，全绿才发。**2026-10-25**：`npm run typecheck` 并入 `verify` / CI verify job / `release.sh`。**2026-10-27**：新增 `.github/workflows/deploy.yml`（CI 成功 → 构建 dist → 发 Pages），并补 `README` 的开发/部署说明；**仍需你在仓库 Settings → Pages 把 Source 改成 GitHub Actions** |
 | 5.6 | e2e 只留关键路径 | 启动、存档往返、离线重载、安装提示、战斗一场、Boss 一场 |
 | 5.7 | 文档同步 | `AGENT.md` 代码地图按新目录重写；`CHANGELOG` 补 3.0.0；`README` 加开发命令 |
-| 5.8 | **版本号旁显示 git hash**：`tools/build.mjs` 读 `git rev-parse --short=7 HEAD`（工作区脏则加 `-dirty`，取不到写 `unknown`），注入 `version.json` 与构建产物；游戏内 4 处版本号文案（启动日志 / 主菜单 / 死亡页 / 版本规则面板）统一从 `core/version` 读取，**不允许各处手拼** | 显示值与 `git rev-parse --short HEAD` 一致；有未提交改动显示 `-dirty`；无 git 环境（解压的 zip）显示 `unknown` 且不报错；`check-ssot` 增加「产物 sha ↔ 当前 HEAD」校验 |
+| 5.8 | **版本号旁显示 git hash** —— ✅ **已完成（2026-10-27）**：`tools/lib/git.mjs` 取短 hash（脏工作区 `-dirty`），vite 注入 `__APP_COMMIT__`，`dist/version.json` 写 `sha` 并自检；游戏内文案统一走 `core/version.mjs` 的 `versionLabel()`（启动日志 / 主菜单 / 版本规则卡片） | 显示值与 `git rev-parse --short HEAD` 一致；有未提交改动显示 `-dirty`；无 git 环境显示 `unknown`；构建自检 sha 与 HEAD |
+
+### 5.9 发布链路实施记录（2026-10-27）
+
+| # | 产物 | 说明 |
+|---|---|---|
+| 5.8 | `tools/lib/git.mjs` · `src/core/version.mjs` · `vite.config.ts` · `tools/build.mjs` | 短 hash 取 `git rev-parse --short=7 HEAD`（脏工作区 `-dirty`，非 git 环境 `unknown`）；Vite 注入 `__APP_COMMIT__`；`dist/version.json` 额外写 `sha` 并回读自检（sha 必须与 HEAD 一致） |
+| 5.2 | `tools/lib/version.mjs` · `tools/stamp.mjs` | `bumpSemver` / `normalizeBuild` 纯函数；stamp 只写 `version.json`，再调 `sync-meta` 生成 html/sw 并回读三处 |
+| 5.3 | `tools/package.mjs` | 系统 `zip` 打 `dist/` → `末日余烬-<ver>.zip`；包内回读 ver/build/BUILD；产物 mtime 早于包才算新鲜 |
+| 5.4 | `tools/release.mjs` · `release.sh` | 流水线：SSOT → tsc → 单测 →（`--e2e` 可选）→ 构建 → 打包；**不再 git add/commit/tag** |
+
+**实测**：`stamp --bump patch` → v2.0.1 / build 103 / 三处同步 → `git checkout` 回滚后 `--check` 仍绿；
+`release` 全流程 exit 0，包 1230.0 KB（21 个产物 / 1496.8 KB）。
+**未验证**：`--e2e` 分支（本地无 Chromium，CI 覆盖）；zip 在 Windows 解压的中文文件名（用系统 zip，UTF-8 与旧包一致）。
 
 ### 5.5.1 Pages 部署记录（2026-10-27）
 

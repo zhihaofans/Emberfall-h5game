@@ -12,6 +12,7 @@ import { rmSync, existsSync, readdirSync, statSync, cpSync, readFileSync, writeF
 import { resolve, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { gitShortSha } from './lib/git.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'dist');
@@ -63,6 +64,27 @@ sw = sw.replace(/const BUILD = '[^']*';/, `const BUILD = '${meta.build}';`);
 sw = sw.replace(/const ASSETS = \[[\s\S]*?\];/, `const ASSETS = [\n${assets.map((a) => `  '${a}'`).join(',\n')}\n];`);
 writeFileSync(join(OUT, 'sw.js'), sw);
 console.log(`已生成 dist/sw.js：BUILD=${meta.build} · 预缓存 ${assets.length} 项`);
+
+// ---- 4.5 dist/version.json 补 git hash（排查线上到底跑的是哪个提交）----
+// 仓库根的 version.json 仍是唯一源（只放 ver/build），sha 是构建期派生，不写回源文件。
+const commit = gitShortSha(ROOT);
+const distMetaPath = join(OUT, 'version.json');
+const distMeta = JSON.parse(readFileSync(distMetaPath, 'utf8'));
+distMeta.sha = commit;
+writeFileSync(distMetaPath, JSON.stringify(distMeta, null, 2) + '\n');
+
+// 回读校验：dist 里的 ver/build/sha 必须与「version.json + 当前 HEAD」一致
+const check = JSON.parse(readFileSync(distMetaPath, 'utf8'));
+const headSha = gitShortSha(ROOT, { dirty: false });
+if (check.ver !== meta.ver || String(check.build) !== String(meta.build) || check.sha !== commit) {
+  console.error(`❌ dist/version.json 与源不一致：${JSON.stringify(check)}`);
+  process.exit(1);
+}
+if (commit !== 'unknown' && !commit.startsWith(headSha)) {
+  console.error(`❌ git hash 不一致：产物 ${commit} / HEAD ${headSha}`);
+  process.exit(1);
+}
+console.log(`已写入 dist/version.json：v${meta.ver} · build ${meta.build} · git ${commit}`);
 
 // ---- 5. 产物清单（体积异常时一眼能看出来）----
 const files = walk(OUT).sort((a, b) => b.size - a.size);

@@ -28,6 +28,7 @@ npm run release   # SSOT + 类型 + 单测 + 构建 + 打包（不做 git commit
 
 ## 部署
 
-推送 `master` → CI（SSOT / 类型 / 单测 / e2e）全绿 → `Deploy` workflow 把 `dist/` 发到 GitHub Pages。
+推送 `master` → CI（SSOT / 类型 / 单测 / e2e）全绿 → `Deploy` workflow 构建 `dist/` 并强制推送到独立的 **`gh-pages`** 分支 → GitHub Pages 从该分支发布。
 
-首次启用需要在仓库 Settings → Pages → Source 选 **GitHub Actions**（之前是“分支部署”，所以线上一直是旧版单文件）。
+一次配置：仓库 Settings → Pages → Build and deployment → Source 选 **Deploy from a branch**，分支选 **`gh-pages`**、目录 **/ (root)**。
+`gh-pages` 只保留当前版本的产物（每次强制单提交），源码分支保持干净；换静态托管时也可以直接拉这个分支。

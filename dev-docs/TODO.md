@@ -398,9 +398,9 @@ import { checkArmorSet } from './core/achievements.mjs';
 
 ### 5.5.1 Pages 部署记录（2026-10-27）
 
-- 新增 `.github/workflows/deploy.yml`：`workflow_run` 监听 CI 完成 → **只有 CI 成功才部署** → checkout `head_sha` → `npm ci` → `npm run build` → `upload-pages-artifact(dist)` → `deploy-pages`
+- 新增 `.github/workflows/deploy.yml`：`workflow_run` 监听 CI 完成 → **只有 CI 成功才部署** → checkout `head_sha` → `npm ci` → `npm run build` → **推送到独立 `gh-pages` 分支**（强制单提交 + `.nojekyll`）
 - 权限：`contents: read` / `pages: write` / `id-token: write`；`concurrency.group: pages`，不取消进行中的部署
-- **一次性设置**：仓库 Settings → Pages → Source 选 **GitHub Actions**。之前是「分支部署（根目录）」，所以线上一直是旧版 `index.html → survival.html`；切换后才是 `dist/` 新版
+- **一次性设置**：仓库 Settings → Pages → Source 选 **Deploy from a branch** → 分支 `gh-pages` / 目录 `/ (root)`（2026-10-27 从 Actions 部署改为独立分支部署）
 - 为什么不在 push 里直接 build+deploy：避免 CI 红了站点却已更新；`workflow_dispatch` 留给补发与链路验证
 - 子路径部署没问题：`base: './'`，`manifest` / `sw.js` / 图标全是相对路径，Pages 的 `/Emberfall-h5game/` 下可用；SW 作用域自然限定在该子路径
 - **验证**：YAML 语法已用 `js-yaml` 解析通过；真实部署要等服务端（push + 改 Pages 设置）——本地无法验证

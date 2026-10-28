@@ -1567,6 +1567,9 @@ export function boot() {
   });
 
   el('modal')?.addEventListener('click', (e) => {
+    // 点暗色背景（modal 本身，不是卡片内部）就关闭：不用滚到底找「关闭」
+    if (e.target === el('modal')) { closeModal(); return; }
+
     const closeBtn = closestEl(e.target, '[data-close]');
     if (closeBtn) { closeModal(); return; }
 

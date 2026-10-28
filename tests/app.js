@@ -125,6 +125,11 @@ async function clickMenu(page, label) {
       ok(menu.some((t) => t.includes(label)), `菜单含「${label}」`);
     }
 
+    // 点暗色背景关闭菜单
+    await page.evaluate(() => document.getElementById('modal').click());
+    const closedByBackdrop = await page.evaluate(() => !document.getElementById('modal').classList.contains('show'));
+    ok(closedByBackdrop, '点菜单外部暗处可以关闭');
+
     // 进度总览：三处已知修正
     await clickMenu(page, '进度总览');
     await page.waitForFunction(() => document.getElementById('modalcard').textContent.includes('强化进度'));

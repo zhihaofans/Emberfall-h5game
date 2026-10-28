@@ -336,3 +336,9 @@ textarea#exportArea,textarea#importArea{
   font-size:11px;color:#f0a08a;background:#1c1210;border:1px solid #5c2a20;border-radius:8px;
   padding:8px;margin-bottom:10px;white-space:pre-wrap;word-break:break-word;
 }
+
+/* 多帧二维码：上一张 / 下一张 */
+.qrnav{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;font-size:12px;color:var(--txt-dim)}
+.qrnav button{border:1px solid var(--line);background:var(--bg3);color:var(--txt);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer}
+.qrnav button:active{background:#38302a}
+#qrStep{min-width:48px;text-align:center;color:var(--yellow);font-variant-numeric:tabular-nums}

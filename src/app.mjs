@@ -51,6 +51,7 @@ import { VERSION_RULES, changelogStats } from './core/changelog.mjs';
 import { versionLabel } from './core/version.mjs';
 import { canInstallNow, install as pwaInstall } from './pwa.mjs';
 import { exportCode, exportQrCode, parseSaveCode } from './core/codec.mjs';
+import { chunkText, parseFrame, FrameCollector } from './core/qr-frames.mjs';
 
 // 版本号由构建注入（唯一源：仓库根 version.json）；git hash 同样构建期注入
 const APP_VERSION = __APP_VERSION__;
@@ -906,6 +907,11 @@ function doCombatAction(act) {
 let pendingConfirm = null;
 /** 图鉴当前分页：'monster' | 'mats' */
 let curWikiTab = 'monster';
+/** 导出二维码轮播（多帧时才启用）：{frames, idx, timer, makeQrCanvas} */
+/** @type {{frames: string[], idx: number, timer: ReturnType<typeof setInterval>, makeQrCanvas: any} | null} */
+let qrPlay = null;
+/** 扫码多帧收集器 */
+const qrCollector = new FrameCollector();
 
 /** 打开通用弹窗：锁背景滚动，防移动端页面被顶起 */
 function openModal() {
@@ -915,6 +921,7 @@ function openModal() {
 
 /** 关闭弹窗：顺手收起移动端键盘，避免残留焦点 */
 function closeModal() {
+  stopQrPlayback();
   el('modal').classList.remove('show');
   el('evmask').classList.remove('show');
   document.body.style.overflow = '';
@@ -1255,7 +1262,7 @@ async function openExport() {
     <h3>📤 导出存档</h3>
     <div class="msub">方式一 · 扫码（跨设备推荐）</div>
     <div id="qrbox"><div id="qrCanvasBox"><div class="qhint">正在生成二维码…</div></div>
-      <div class="qhint">用另一台手机的相机 / 微信 / 扫码 App 扫一扫<br>扫出的文本就是存档，粘贴到新设备的导入框即可</div>
+      <div id="qrHint" class="qhint">用另一台手机的相机 / 微信 / 扫码 App 扫一扫<br>扫出的文本就是存档，粘贴到新设备的导入框即可</div>
     </div>
     <div class="msub">方式二 · 复制 / 下载代码</div>
     <textarea id="exportArea" readonly>${escapeHtml(code)}</textarea>
@@ -1265,15 +1272,54 @@ async function openExport() {
 
   // 二维码组件（qrcode-generator）按需加载：不打开导出面板就不为它付首屏体积
   const box = document.getElementById('qrCanvasBox');
+  const hint = document.getElementById('qrHint');
   try {
     const { makeQrCanvas } = await import('./ui/qr.mjs');
     if (!box) return;
-    box.innerHTML = '';
-    // 二维码用压缩格式（EMQR1），否则大存档塞不进码里
-    box.appendChild(makeQrCanvas(exportQrCode(G, APP_VERSION), 260));
+
+    // 大存档：内容 ~1900 字符 → 拆成 4 张（每张 ~480 字符 / ~85 模块），手机才扫得动
+    const { frames } = chunkText(exportQrCode(G, APP_VERSION));
+
+    if (frames.length === 1) {
+      box.innerHTML = '';
+      box.appendChild(makeQrCanvas(frames[0], 320));
+      return;
+    }
+
+    box.insertAdjacentHTML('afterend',
+      '<div class="qrnav"><button data-qr-prev>‹ 上一张</button>'
+      + '<span id="qrStep"></span>'
+      + '<button data-qr-next>下一张 ›</button></div>');
+    if (hint) {
+      hint.innerHTML = '这张只包含一部分存档：另一台手机逐张扫，收满后自动导入<br>'
+        + '<span style="opacity:.75">也可以点「下一张」手动切换</span>';
+    }
+    qrPlay = { frames, idx: 0, timer: setInterval(() => showQrFrame((qrPlay ? qrPlay.idx + 1 : 0) % frames.length), 4000), makeQrCanvas };
+    showQrFrame(0);
   } catch {
     if (box) box.innerHTML = '<div class="qhint">二维码加载失败，请改用复制 / 下载</div>';
   }
+}
+
+/** 显示第 i 张（多帧导出）
+ * @param {number} i */
+function showQrFrame(i) {
+  if (!qrPlay) return;
+  const { frames, makeQrCanvas } = qrPlay;
+  qrPlay.idx = i;
+  const box = document.getElementById('qrCanvasBox');
+  const step = document.getElementById('qrStep');
+  if (box) {
+    box.innerHTML = '';
+    box.appendChild(makeQrCanvas(frames[i], 320));
+  }
+  if (step) step.textContent = `${i + 1}/${frames.length}`;
+}
+
+/** 关闭导出面板/切走时停掉轮播 */
+function stopQrPlayback() {
+  if (qrPlay) clearInterval(qrPlay.timer);
+  qrPlay = null;
 }
 
 function copyExport() {
@@ -1344,13 +1390,30 @@ function doImport() {
 /** 扫码导入：关掉弹窗 → 起摄像头 → 解码成功即导入（扫码组件按需加载） */
 async function scanImport() {
   closeModal();
+  qrCollector.reset();
   try {
     const { startScanner } = await import('./ui/qr.mjs');
     startScanner({
       onText: (text) => {
+        // 多帧二维码：逐张收集，集齐再导入；返回 true 让扫码器继续
+        const frame = parseFrame(text);
+        if (frame) {
+          const already = qrCollector.has(frame);
+          const r = qrCollector.add(frame);
+          if (r.text) {
+            const parsed = parseSaveCode(r.text);
+            if (!parsed) { toast('扫到的存档无法解析'); return false; }
+            adoptSave(parsed.state, parsed.isOld, '扫码导入');
+            return false;
+          }
+          if (!already) toast(`已扫到第 ${frame.seq}/${r.total} 张，继续对准下一张`);
+          return true;
+        }
+
         const parsed = parseSaveCode(text);
-        if (!parsed) { toast('扫到的内容不是有效存档（应为 EMBER: / EMQR1: 开头）'); return; }
+        if (!parsed) { toast('扫到的内容不是有效存档（应为 EMBER: / EMQR1: 开头）'); return false; }
         adoptSave(parsed.state, parsed.isOld, '扫码导入');
+        return false;
       },
       onError: (msg) => toast(msg),
     });
@@ -1533,6 +1596,17 @@ export function boot() {
 
     const wtab = closestEl(e.target, '[data-wiki-tab]');
     if (wtab) { curWikiTab = String(wtab.dataset.wikiTab); renderWiki(); return; }
+
+    const qrPrev = closestEl(e.target, '[data-qr-prev]');
+    if (qrPrev && qrPlay) {
+      showQrFrame((qrPlay.idx - 1 + qrPlay.frames.length) % qrPlay.frames.length);
+      return;
+    }
+    const qrNext = closestEl(e.target, '[data-qr-next]');
+    if (qrNext && qrPlay) {
+      showQrFrame((qrPlay.idx + 1) % qrPlay.frames.length);
+      return;
+    }
 
     if (closestEl(e.target, '[data-export-copy]')) { copyExport(); return; }
     if (closestEl(e.target, '[data-export-download]')) { downloadExport(); return; }

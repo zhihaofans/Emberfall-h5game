@@ -64,7 +64,7 @@ export function stopScanner() {
 
 /**
  * 打开扫码层并开始解码。第一次解出内容就自动停流并回调。
- * @param {{onText: (text: string) => void, onError: (msg: string) => void}} opts
+ * @param {{onText: (text: string) => boolean|void, onError: (msg: string) => void}} opts
  */
 export async function startScanner(opts) {
   const { onText, onError } = opts;
@@ -108,7 +108,7 @@ export async function startScanner(opts) {
 /**
  * 抽一帧解码。
  * @param {HTMLVideoElement} video
- * @param {(text: string) => void} onText
+ * @param {(text: string) => boolean|void} onText
  */
 function tick(video, onText) {
   if (!video || video.readyState < 2 || !video.videoWidth) return;
@@ -129,7 +129,8 @@ function tick(video, onText) {
 
   const res = jsQR(img.data, img.width, img.height);
   if (res && res.data) {
-    stopScanner();
-    onText(res.data);
+    // onText 返回 true = 还要继续扫（多帧二维码：已收集一部分）
+    const keepScanning = onText(res.data) === true;
+    if (!keepScanning) stopScanner();
   }
 }

@@ -36,6 +36,7 @@ import { pickMonster, fightRound, fightBoss, flee, bossFlee, bait, bossStats, ph
 import { checkMilestone, checkStageAchieve, checkArmorSet } from './core/achievements.mjs';
 import { fillResText } from './core/effects.mjs';
 import { settleOffline } from './core/offline.mjs';
+import { isIgnorableScriptError } from './core/errors.mjs';
 import { pickMerchantGoods, canTrade, buyMerchant, doraInfo, doraGoods, DORA_GIFTS, canGift, giftDora, canBuyDoraGood, buyDoraGood, addDoraFav } from './core/npc.mjs';
 import { markEncounter, wikiProgress } from './core/wiki.mjs';
 import { monsterEntries, materialEntries } from './core/bestiary.mjs';
@@ -1449,10 +1450,19 @@ function clearSaveAndRestart() {
  */
 function installErrorHooks() {
   window.addEventListener('error', (e) => {
+    // 跨域脚本的脱敏错误（如手机内置浏览器切全屏时的 "Script error."）不写进游戏日志
+    if (isIgnorableScriptError(e)) {
+      console.warn('[忽略] 跨域脚本错误：', e.message);
+      return;
+    }
     log(`💥 脚本错误：${e.message}（${e.filename || '?'}:${e.lineno || 0}）`, 'bad');
   });
   window.addEventListener('unhandledrejection', (e) => {
     const r = e.reason;
+    if (isIgnorableScriptError({ message: String((r && r.message) || r), error: r })) {
+      console.warn('[忽略] 未处理的跨域异常：', r);
+      return;
+    }
     log(`💥 未处理的异常：${(r && r.message) || r}`, 'bad');
   });
 }

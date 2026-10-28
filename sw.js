@@ -10,7 +10,7 @@
    5. 预缓存逐个 add，单个失败不影响整体安装。
    ============================================================ */
 
-const BUILD = '112';                 // 发布脚本注入构建号（BUILD_CODE）
+const BUILD = '113';                 // 发布脚本注入构建号（BUILD_CODE）
 const CACHE = 'emberfall-' + BUILD;
 const CACHE_PREFIX = 'emberfall-';
 

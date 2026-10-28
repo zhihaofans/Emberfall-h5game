@@ -23,11 +23,11 @@ html, body { touch-action: manipulation; -ms-touch-action: manipulation; }
 #statusbar{
   background:linear-gradient(180deg,#221a13,#1a140e);
   border-bottom:1px solid var(--line);
-  padding:6px 10px calc(6px + env(safe-area-inset-top));
-  padding-top:calc(6px + env(safe-area-inset-top));
+  padding:4px 10px calc(4px + env(safe-area-inset-top));
+  padding-top:calc(4px + env(safe-area-inset-top));
   flex-shrink:0; z-index:5;
 }
-#topline{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+#topline{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
 #dayinfo{font-size:12px;color:var(--txt-dim);line-height:1.5}
 #dayinfo b{color:var(--accent)}
 #topbtns{display:flex;gap:6px}
@@ -37,7 +37,7 @@ html, body { touch-action: manipulation; -ms-touch-action: manipulation; }
   display:flex;align-items:center;justify-content:center;cursor:pointer;
 }
 .iconbtn:active{background:#352a20}
-#stats{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px}
+#stats{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px}
 .stat{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--txt-dim)}
 .stat .lab{width:26px;flex-shrink:0}
 .stat .bar{flex:1;height:9px;background:#0e0b08;border-radius:5px;overflow:hidden;border:1px solid #2a231b}
@@ -55,12 +55,12 @@ html, body { touch-action: manipulation; -ms-touch-action: manipulation; }
   border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;
 }
 #logwrap{
-  flex:1; overflow-y:auto; padding:10px 12px; 
+  flex:1; overflow-y:auto; padding:6px 10px 8px; 
   overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
   scrollbar-width:none;
 }
 #logwrap::-webkit-scrollbar{display:none}
-.logline{font-size:13.5px;line-height:1.65;color:var(--txt-dim);padding:1px 0;animation:fadein .25s ease}
+.logline{font-size:13px;line-height:1.5;color:var(--txt-dim);padding:0;animation:fadein .25s ease}
 .logline.sys{color:var(--txt-faint);font-size:12px}
 .logline.good{color:var(--ok)}
 .logline.bad{color:var(--bad)}
@@ -72,10 +72,11 @@ html, body { touch-action: manipulation; -ms-touch-action: manipulation; }
 /* ============ 底部操作区 ============ */
 #bottom{
   flex-shrink:0; background:var(--bg2); border-top:1px solid var(--line);
-  padding:6px 8px calc(8px + env(safe-area-inset-bottom));
-  padding-bottom: max(calc(8px + env(safe-area-inset-bottom)), 44px); /* 兼容 iOS Safari URL 栏遮挡 */
+  padding:5px 8px calc(6px + env(safe-area-inset-bottom));
+  /* 只有真的存在 home 指示条时才留安全区；不再无条件垫 44px（Android 上会是一大块空白） */
+  padding-bottom: max(calc(6px + env(safe-area-inset-bottom)), 10px);
 }
-#tabs{display:flex;gap:5px;margin-bottom:6px}
+#tabs{display:flex;gap:5px;margin-bottom:4px}
 .tab{
   flex:1;padding:7px 0;border-radius:7px;border:1px solid var(--line);
   background:var(--bg3);color:var(--txt-dim);font-size:12.5px;cursor:pointer;text-align:center;
@@ -86,7 +87,7 @@ html, body { touch-action: manipulation; -ms-touch-action: manipulation; }
   background:var(--bg3);color:var(--txt-dim);font-size:11px;cursor:pointer;
 }
 #btnFold:active{background:#38302a}
-#zonebar{display:flex;gap:5px;margin-bottom:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+#zonebar{display:flex;gap:5px;margin-bottom:4px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
 #zonebar::-webkit-scrollbar{display:none}
 .zonebtn{
   flex-shrink:0;padding:4px 11px;border-radius:12px;border:1px solid var(--line);
@@ -104,12 +105,12 @@ html, body { touch-action: manipulation; -ms-touch-action: manipulation; }
 .zonebtn.zone-hills.on {background:#3a2a5a;border-color:#9a7ac0;color:#d0bff4;box-shadow:0 0 8px rgba(154,122,192,.5)}
 .zonebtn.zone-pyramid{background:rgba(200,168,74,.18);color:#d4b878;border-color:rgba(200,168,74,.4)} /* v1.29.8 修复：沙漠按钮未选/选中区分 */
 .zonebtn.zone-pyramid.on{background:#5a4010;border-color:#c8a84a;color:#f4e0a0;box-shadow:0 0 8px rgba(200,168,74,.5)}
-#actions{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;max-height:50vh;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;min-width:0}
+#actions{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-height:50vh;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;min-width:0}
 #actions::-webkit-scrollbar{display:none}
 /* 小屏（手机）2 列布局：3 列太挤文字截断，1 列又吃掉日志区，2 列最平衡 */
 @media (max-width:480px){
-  #actions{grid-template-columns:repeat(2,1fr);gap:6px;max-height:52vh}
-  .actbtn{padding:8px 6px;min-height:46px;flex-direction:column;justify-content:center;gap:2px;min-width:0;overflow:hidden}
+  #actions{grid-template-columns:repeat(2,1fr);gap:5px;max-height:52vh}
+  .actbtn{padding:7px 6px;min-height:42px;flex-direction:column;justify-content:center;gap:2px;min-width:0;overflow:hidden}
   .actbtn .sub{font-size:10.5px;line-height:1.3;white-space:normal;max-width:100%;overflow-wrap:break-word;word-break:break-word;max-height:4em;overflow:hidden}
   .actbtn .lv{font-size:10px;right:4px;bottom:3px;padding:1px 5px}
   /* 制作页的占整行说明（背包提示）也正常 */

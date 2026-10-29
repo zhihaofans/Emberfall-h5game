@@ -2,7 +2,7 @@
 // 单一数据源（SSOT）校验：只读，不改任何文件。
 //
 // 目的：把"同一事实存在于多处"的地方钉住。任何一处漂移就 exit 1，发布前必须绿。
-// 规则见 AGENT.md §0.5；计划见 dev-docs/TODO.md P0-2.4。
+// 规则见 AGENT.md §0.6；计划见 dev-docs/TODO.md P0-2.4。
 //
 // 用法：node tools/check-ssot.mjs
 // 退出码：0 = 全部一致；1 = 有失败项（会打印具体差异）

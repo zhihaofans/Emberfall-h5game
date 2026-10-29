@@ -14,7 +14,7 @@
 //   node tools/sync-meta.mjs --check    只检查，有差异则 exit 1（CI / 发布前用）
 //   node tools/sync-meta.mjs --dry-run  只打印将要改什么，不写
 //
-// 规则见 AGENT.md §0.5。
+// 规则见 AGENT.md §0.6。
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';

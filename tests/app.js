@@ -176,6 +176,46 @@ async function clickMenu(page, label) {
     const logs = await page.$eval('#logwrap', (e) => e.textContent);
     ok(/你离开了 3 小时/.test(logs), '离线结算日志出现');
 
+    // ---- 断网重载：SW 缓存必须能撑住 ----
+    await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+    await page.waitForFunction(() => !!navigator.serviceWorker.controller, { timeout: 10000 }).catch(() => {});
+    await page.setOfflineMode(true);
+    await page.reload({ waitUntil: 'networkidle0' });
+    const offlineActs = await page.$$eval('#actions .actbtn', (els) => els.length).catch(() => 0);
+    ok(offlineActs === 12, `断网重载后仍能进入（${offlineActs} 个行动）`);
+    await page.setOfflineMode(false);
+
+    // ---- 战斗一场：把随机数钉成 0，探索必遇怪 ----
+    await page.evaluate(() => { Math.random = () => 0; });
+    await page.evaluate(() => document.querySelector('#actions [data-kind="explore"]').click());
+    await page.waitForSelector('#evwrap .evbtn', { timeout: 8000 });
+    const combatTip = await page.$eval('#evwrap', (e) => e.textContent);
+    ok(/遭遇|兽王|法老/.test(combatTip), '探索触发了战斗弹窗');
+    await page.evaluate(() => [...document.querySelectorAll('#evwrap .evbtn')].find((b) => b.textContent.includes('迎战')).click());
+    await page.waitForFunction(() => !document.getElementById('evmask').classList.contains('show'), { timeout: 8000 });
+    const combatLog = await page.$eval('#logwrap', (e) => e.textContent);
+    ok(/(击败|造成|受到|倒下)/.test(combatLog), '战斗结算写进了日志');
+
+    // ---- Boss 一场：把存档改成第 40 天 + 钢刀，探索必遇兽王 ----
+    await page.evaluate(() => {
+      const raw = JSON.parse(localStorage.getItem('ember_save_v1'));
+      raw.g.day = 40;
+      raw.g.hp = 100; raw.g.food = 100; raw.g.water = 100; raw.g.stam = 100;
+      raw.g.stats = { ...raw.g.stats, bossKills: 0 };
+      raw.g.items = { ...raw.g.items, knife: true, iron: true, steel: true };
+      localStorage.setItem('ember_save_v1', JSON.stringify(raw));
+    });
+    await page.reload({ waitUntil: 'networkidle0' });
+    await page.evaluate(() => { Math.random = () => 0; });
+    await page.evaluate(() => document.querySelector('#actions [data-kind="explore"]').click());
+    await page.waitForSelector('#evwrap .evbtn', { timeout: 8000 });
+    const bossTip = await page.$eval('#evwrap', (e) => e.textContent);
+    ok(/兽王/.test(bossTip), '第 40 天探索遇到兽王');
+    await page.evaluate(() => [...document.querySelectorAll('#evwrap .evbtn')].find((b) => b.textContent.includes('迎战')).click());
+    await page.waitForFunction(() => !document.getElementById('evmask').classList.contains('show'), { timeout: 10000 });
+    const bossLog = await page.$eval('#logwrap', (e) => e.textContent);
+    ok(/兽王/.test(bossLog), 'Boss 战斗有结算日志');
+
     ok(errors.length === 0, `0 条 pageerror${errors.length ? '：' + errors[0] : ''}`);
   } catch (err) {
     fail++;

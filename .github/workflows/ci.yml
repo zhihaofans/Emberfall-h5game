@@ -64,6 +64,16 @@ jobs:
           else
             node tests/run-e2e.mjs
           fi
+      - name: 生成可视化回归截图
+        run: node tools/shots.mjs
+      - name: 上传截图（基线）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/regression
+          if-no-files-found: warn
+          retention-days: 14
       - name: 上传日志（失败时）
         if: failure()
         uses: actions/upload-artifact@v4

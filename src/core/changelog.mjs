@@ -14,7 +14,7 @@
 
 /**
  * 版本规则（菜单 → 更新日志顶部的说明卡片）。
- * 与 `survival.html` 的 `VERSION_RULES` 一致；MAJOR 的定义见 AGENT.md §0.3。
+ * 与 `survival.html` 的 `VERSION_RULES` 一致；MAJOR 的定义见 AGENT.md §0.4。
  * @type {[string, string, string][]}
  */
 export const VERSION_RULES = [

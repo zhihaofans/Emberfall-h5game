@@ -7,7 +7,7 @@
 //   node tools/stamp.mjs --build 103                        # 只动构建号
 //   node tools/stamp.mjs --check                            # 只校验三处一致，不写
 //
-// 规则（AGENT.md §0.3）：改代码不动版本号；测试全绿后一次性 bump；BUILD 单调 +1。
+// 规则（AGENT.md §0.4）：改代码不动版本号；测试全绿后一次性 bump；BUILD 单调 +1。
 // 写完会调用 tools/sync-meta.mjs（把 build 写进 sw.js），随后回读校验 —— 不一致直接 exit 1。
 // M4 之后只有两处：version.json（源）与 sw.js 的 BUILD（生成物）。
 

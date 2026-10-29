@@ -20,7 +20,7 @@ npm run stamp -- --bump patch --note "说明"   # 改版本号（唯一源 versi
 npm run release   # SSOT + 类型 + 单测 + 构建 + 打包（不做 git commit/tag）
 ```
 
-版本号唯一源是 `version.json`：改代码时不动版本号，发版时统一 bump（规则见 `AGENT.md` §0.3）。
+版本号唯一源是 `version.json`：改代码时不动版本号，发版时统一 bump（规则见 `AGENT.md` §0.4）。
 
 - 项目结构与协作铁律：`AGENT.md`
 - 重构进度与待办：`dev-docs/TODO.md`

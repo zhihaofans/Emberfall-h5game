@@ -22,7 +22,7 @@ const TESTS = dirname(fileURLToPath(import.meta.url));
 const TIMEOUT_MS = 180_000;
 
 // 新架构的默认用例（对 dist/ 做真浏览器冒烟）
-const NEW_SUITE = ['app.js'];
+const NEW_SUITE = ['app.js', 'install.js'];
 
 // 旧单文件版本的历史用例（对 legacy/survival.html；仅 --legacy 时跑）
 const LEGACY_WHITELIST = [

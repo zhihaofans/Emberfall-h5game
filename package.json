@@ -16,7 +16,8 @@
     "verify:ci": "node tools/check-ssot.mjs && npm run typecheck && node --test --test-concurrency=1 tests/unit/*.test.mjs && node tests/run-e2e.mjs",
     "stamp": "node tools/stamp.mjs",
     "package": "node tools/package.mjs",
-    "release": "node tools/release.mjs"
+    "release": "node tools/release.mjs",
+    "shots": "node tools/shots.mjs"
   },
   "devDependencies": {
     "@types/lz-string": "^1.3.34",

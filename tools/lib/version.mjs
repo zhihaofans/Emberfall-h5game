@@ -1,6 +1,6 @@
 // 版本号运算（纯函数）：stamp / 测试共用。
 //
-// 规则见 AGENT.md §0.3：
+// 规则见 AGENT.md §0.4：
 //   MAJOR = 不兼容的重大重构或存档不兼容 · MINOR = 新增功能 · PATCH = 修 bug
 //   BUILD_CODE 每次发布单调 +1，与版本号解耦，不随 MAJOR 重置
 

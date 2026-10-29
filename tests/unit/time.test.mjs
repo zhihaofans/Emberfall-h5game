@@ -72,18 +72,18 @@ test('seasonOf：每 10 天一季，40 天一轮', () => {
   assert.equal(seasonOf(80), 3);
 });
 
-test('rollWeather：冬季分布含四种，非冬季跳过暴雨（原样保留）', () => {
+test('rollWeather：冬季有五种，非冬季有暴雨但没有暴风雪（SUSPECTED #3 已修）', () => {
   // 冬季：0/1/2/3/4 全都有可能
   const winter = [0.1, 0.5, 0.8, 0.9, 0.99].map((r) => rollWeather(3, () => r));
   assert.deepEqual(winter, [0, 1, 2, 3, 4]);
 
-  // 非冬季：0/1/2/4 —— 没有 3（暴雨），这是原实现的分布
+  // 非冬季：0/1/2/3 —— 有暴雨，不再出现 4（暴风雪）
   const summer = [0.1, 0.6, 0.95].map((r) => rollWeather(0, () => r));
-  assert.deepEqual(summer, [0, 1, 4]);
-  assert.ok(!summer.includes(3));
+  assert.deepEqual(summer, [0, 1, 3]);
   for (let season = 0; season < 3; season++) {
     const got = [0.1, 0.6, 0.8, 0.95].map((r) => rollWeather(season, () => r));
-    assert.ok(!got.includes(3), `非冬季不该出现暴雨（season=${season}）`);
+    assert.ok(got.includes(3), `非冬季应能出现暴雨（season=${season}）`);
+    assert.ok(!got.includes(4), `非冬季不该出现暴风雪（season=${season}）`);
   }
 });
 

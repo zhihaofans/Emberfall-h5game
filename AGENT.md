@@ -20,7 +20,7 @@
 
 发现的东西统一登记在 [`dev-docs/SUSPECTED.md`](dev-docs/SUSPECTED.md)（只增不删，解决后标注结果），不要只写在对话里。
 
-项目文档分布：**根目录**只放 `AGENT.md`（AI 入口）与面向玩家的 `README.md` / `CHANGELOG.md`；**`dev-docs/`** 放开发过程文档（`TODO.md` 重构计划、`SUSPECTED.md` 疑似离谱设定）。
+项目文档分布：**根目录**只放 `AGENT.md`（AI 入口）与面向玩家的 `README.md` / `CHANGELOG.md`；**`dev-docs/`** 放开发过程文档（`TODO.md` 剩余工作、`DONE.md` 已完成归档、`SUSPECTED.md` 疑似离谱设定）。
 
 ### 0.2 Git 与发版必须人工确认（2026-10-28 定）
 
@@ -113,7 +113,8 @@ src/                 新架构源码（唯一开发对象）
 legacy/survival.html 冻结的 2.0.0 旧实现（单测对拍基准；不发布、不修改，见 legacy/README.md）
 tools/               构建与发布：build / stamp / package / release / check-ssot / sync-meta
 tests/unit/          纯函数单测（211 条）
-tests/app.js         新架构 e2e（dist/ 冒烟）
+tests/app.js         新架构 e2e（dist/ 冒烟：启动/存档/离线/战斗/Boss/断网）
+tests/install.js     安装引导 e2e（iPhone UA）
 tests/*.js           旧 66 个 e2e（只有 `--legacy` 才跑）
 dist/                构建产物（不入库）
 version.json         版本号唯一源
@@ -282,7 +283,7 @@ Boss 战为多回合自动对拼（`fight()` 内 while 循环），普通怪单�
 ### 3.7 强化与附魔
 
 - **强化**（`UPGRADES`）：武器/斧头/鱼竿/捕兽夹，上限 **15 级**
-  - 成本：`base × (当前等级 + 1)`；**Lv.10 起额外消耗符石与合金**（`rune = lv-9`、`alloy = round((lv-9)×1.5)`）
+  - 成本：`base × (当前等级 + 1)`；**升到 11 级起额外消耗符石与合金**（`rune = lv-9`、`alloy = round((lv-9)×1.5)`；实现为 `lv>=10` 时计入这一次的成本）
   - 效果：武器 +10% 攻击/级，斧 +10% 产量/级，鱼竿 +6% 成功率/级，捕兽夹 +15% 产量/级
 - **附魔**（`ENCHANTS`）：需先造附魔台；台等级上限 **5**，因此附魔等级受台限制
   - 🗡锋利：武器伤害 +10%/级 · 🛡保护：受击 −8%/级 · ⚒效率：采集 +8%/级
@@ -348,7 +349,7 @@ Boss 战为多回合自动对拼（`fight()` 内 while 循环），普通怪单�
 ```js
 xpNeed(lvl)        = round(8*lvl*lvl + 12*lvl)
 upgradeCost(key,lv)= base × (lv+1)  // lv 为当前等级
-强化实际消耗        = lv>=10 ? 额外 {rune: lv-9, alloy: round((lv-9)*1.5)} : 无
+强化实际消耗        = lv>=10 ? 额外 {rune: lv-9, alloy: round((lv-9)*1.5)} : 无   // lv 是当前等级 → 升到 11 级起
 enchantCost(kind,lv)= base × (lv+1)
 armorDmgMult()     = max(0.1, Π(部位减伤) × 符甲(1/3) × (1 - 保护等级×0.08))
 weaponAtk()        = base.atk × (1 + 锋利等级×0.10)
@@ -531,7 +532,7 @@ if (!canSW) return;   // file:// 直接打开：不注册、不报错、游戏�
 - 命名：旧 e2e 用 `v<版本号去点>.js`（如 `v1300.js`），回归用固定名（`version.js` / `layout.js` / `regress.js`）；新 e2e 只有 `app.js`
 - 技术：`puppeteer-core` + 系统 Chromium，**真实浏览器**，不用 jsdom
 - 路径：项目根 / 游戏 URL / 浏览器路径统一从 `tests/_env.js` 取（`ROOT` / `URL` / `CHROMIUM`），**禁止硬编码绝对路径**；浏览器路径可用 `CHROMIUM_PATH` 覆盖
-- e2e 统一入口：`tests/run-e2e.mjs`（默认跑 `tests/app.js`，需先 `npm run build`；`--legacy` 跑旧 15 个；`--all` 全跑）。**它把"进程崩了但一条断言都没跑"也算失败**，避免误判通过
+- e2e 统一入口：`tests/run-e2e.mjs`（默认跑 `tests/app.js` + `tests/install.js`，需先 `npm run build`；`--legacy` 跑旧 15 个；`--all` 全跑）。**它把"进程崩了但一条断言都没跑"也算失败**，避免误判通过
 - 单测写法：`node:test` + `node:assert/strict`，文件 `tests/unit/*.test.mjs`
 - 写法骨架：
 
@@ -597,6 +598,7 @@ git push origin master --tags     # CI 全绿 → Deploy workflow 发 Pages
 - 新增系统（新资源类、新区域、新战斗机制） → 更新 §3 对应小节
 - 踩到新的静默失败坑 → 追加到 §7 表格
 - 改发布流程 → 更新 §8.2
+- 完成一项待办 → 从 `TODO.md` 移到 `DONE.md`（TODO 只留未完成）
 - **本文件与代码冲突时以代码为准，并立即修正本文件**
 
 ---

@@ -12,7 +12,7 @@ export const UPGRADES = {
 
 /**
  * 升到下一级（lv → lv+1）的总成本。基础成本按 (当前等级 + 1) 线性放大；
- * Lv.10 起额外消耗符石与合金（原实现如此，11–15 级才真正需要）。
+ * 升到 11 级起额外消耗符石与合金（实现为 `lv >= 10` 时把这次升级的额外材料算进成本）。
  * @param {string} key
  * @param {number} lv 当前等级
  * @returns {Record<string, number>}

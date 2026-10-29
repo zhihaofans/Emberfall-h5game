@@ -26,8 +26,8 @@ export function seasonOf(day) {
 
 /**
  * 掷当日天气。
- * ⚠ 原实现：非冬季的分布是 `0/1/2/4`，**跳过了 3（暴雨）**，所以夏天也会出现 4（暴风雪）。
- * 这里按原样保留（行为等价优先），是否修正见 TODO「疑似离谱设定」。
+ * 2026-10-29 修正（SUSPECTED #3）：原实现非冬季用 `0/1/2/4`，跳过了 3（暴雨），
+ * 导致春天也能下暴风雪、四季都见不到暴雨。现在非冬季用 `0/1/2/3`，暴风雪只在冬季。
  * @param {number} season
  * @param {() => number} random
  * @returns {number} WEATHERS 的索引
@@ -35,7 +35,7 @@ export function seasonOf(day) {
 export function rollWeather(season, random = Math.random) {
   const r = random();
   if (season === 3) return r < 0.45 ? 0 : r < 0.7 ? 1 : r < 0.85 ? 2 : r < 0.95 ? 3 : 4;
-  return r < 0.5 ? 0 : r < 0.75 ? 1 : r < 0.9 ? 2 : 4;
+  return r < 0.5 ? 0 : r < 0.75 ? 1 : r < 0.9 ? 2 : 3;
 }
 
 /**
